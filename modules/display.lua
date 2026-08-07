@@ -42,12 +42,18 @@ local function enemyHudVisible(battle)
     and not battle.introBalls and not battle.enemy.fainted
 end
 
+local function caughtPosition(wide)
+  return wide and 120 or 87, wide and 24 or 18
+end
+
 local function drawCaught(battle)
   if not shared.bool("caught_indicator", true) or battle.kind ~= "wild"
       or not caughtAtStart[battle] or battle.demo or battle.ghost
       or not enemyHudVisible(battle) then return end
   local wide = battle.wideLayout and battle:wideLayout()
-  local x, y = wide and 113 or 9, 10
+  -- Keep the marker on the HP row, beyond the bar, where neither classic
+  -- name alignment nor Stadium A's left-aligned names can reach it.
+  local x, y = caughtPosition(wide)
   local g = love.graphics
   g.setShader()
   g.setColor(0, 0, 0, 1)
@@ -112,4 +118,8 @@ mod.events:on("map.entered", function(event)
   end
 end)
 
-mod.exports.display = { expRatio = expRatio, locationName = locationName }
+mod.exports.display = {
+  expRatio = expRatio,
+  locationName = locationName,
+  caughtPosition = caughtPosition,
+}

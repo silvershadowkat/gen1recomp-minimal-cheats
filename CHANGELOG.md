@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.1 - 2026-08-07
+
+### Fixed
+
+- Moved `SILVERSHADOW` to the top of normal Options and enabled Up/Down wraparound in every SilverShadow menu.
+- Shortened crowded menu labels so toggle values no longer overlap.
+- Made Pokémon-front follower counts include the lead Pokémon, allowing one Pokémon alone or one Pokémon with only the trainer trailing; counts five and six are now distinct.
+- Prevented duplicate `FOLLOWER` / `FOLLOWING` party actions when PokéPC already supplies one.
+- Moved the caught icon from the enemy name row to the far end of the HP row for classic and Stadium layouts.
+- Consumed overworld SELECT while moving or input-locked so DexNav presses cannot also change the voxel camera.
+- Reset paid field-heal escalation only after a completed Pokémon Center nurse heal; route changes intentionally retain the current cost.
+- Documented that Box Heal affects stored Pokémon when closing storage and is unrelated to the paid Start-menu heal.
+
 ## 2.0.0 - 2026-08-07
 
 ### SilverShadow Mods integration

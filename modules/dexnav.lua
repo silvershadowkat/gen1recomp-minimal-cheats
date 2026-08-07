@@ -244,8 +244,11 @@ local function installSelectHandler(mod, game)
       end
       local input = game.input
       if not input or not input:wasPressed("select") then return false end
-      if not isFreeOverworld(overworld) then return false end
-      return activate(mod, game, overworld)
+      -- SELECT belongs to DexNav throughout overworld control. If movement,
+      -- a held direction, or a script makes activation unsafe, consume the
+      -- press without forwarding it to a voxel camera handler.
+      if isFreeOverworld(overworld) then activate(mod, game, overworld) end
+      return true
     end,
     onError = function(err)
       mod.log:error("SELECT handler failed: %s", tostring(err))

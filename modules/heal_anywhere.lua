@@ -246,15 +246,19 @@ return function(mod, shared)
     }
   end
 
-  if OverworldState.nurseHeal and not OverworldState._healAnywhereWrapped then
-    local orig = OverworldState.nurseHeal
-    function OverworldState:nurseHeal(onDone, npc)
+  -- Reset only after the player accepts and completes a real nurse heal.
+  -- Entering the dialogue (or declining it) must not make the next field
+  -- heal cheap again, and ordinary map/route changes intentionally do not.
+  if OverworldState.finishNurseHeal
+      and not OverworldState._healAnywhereFinishWrapped then
+    local orig = OverworldState.finishNurseHeal
+    function OverworldState:finishNurseHeal(bye, onDone)
       if Game and Game.save then
         Game.save.healAnywhereUses = 0
       end
-      return orig(self, onDone, npc)
+      return orig(self, bye, onDone)
     end
-    OverworldState._healAnywhereWrapped = true
+    OverworldState._healAnywhereFinishWrapped = true
   end
 
   -- Flat path: suppress stock OAM and paint after the world pass.

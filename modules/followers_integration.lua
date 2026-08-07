@@ -51,17 +51,30 @@ local function sync(game)
   end
 end
 
+local function followerPlan(who, trainerFollows, count)
+  count = math.max(1, math.min(6, math.floor(tonumber(count) or 1)))
+  if who == "trainer" then
+    return "follow", count
+  end
+
+  -- In Pokemon-front mode the visible count includes the controlled lead.
+  -- PokePC's engine count is trailers only, so translate 1..6 to 0..5.
+  local trailers = count - 1
+  if trainerFollows then return "lead_trainer", trailers end
+  if trailers > 0 then return "pack", trailers end
+  return "pokemon", 0
+end
+
 local function applyMode(game)
   local ex = api()
   if not (ex and type(ex.setControlMode) == "function") then return false end
   local who = shared.get("follower_mode", "trainer")
   local trainerFollows = shared.bool("trainer_follows", false)
   local count = tonumber(shared.get("follower_count", 1)) or 1
-  local mode
-  if who == "trainer" then mode = "follow"
-  elseif trainerFollows then mode = "lead_trainer"
-  elseif count > 0 then mode = "pack"
-  else mode = "pokemon" end
+  local mode, engineCount = followerPlan(who, trainerFollows, count)
+  if type(ex.setFollowerCount) == "function" then
+    pcall(ex.setFollowerCount, game, engineCount)
+  end
   pcall(ex.setControlMode, game, mode)
   sync(game)
   return true
@@ -81,10 +94,6 @@ end
 shared.applyFollowerCount = function(game, value)
   local count = math.max(1, math.min(6, math.floor(tonumber(value) or 1)))
   shared.set("follower_count", count)
-  local ex = api()
-  if ex and type(ex.setFollowerCount) == "function" then
-    pcall(ex.setFollowerCount, game, count)
-  end
   applyMode(game)
   return true
 end
@@ -92,7 +101,7 @@ end
 shared.registerPartyDecorator("followers", 40, function(game, items, mon, ctx)
   if ctx and ctx.battle or not shared.followersAvailable(game) then return items end
   for _, item in ipairs(items) do
-    if tostring(item.label or ""):upper():find("FOLLOWER", 1, true) then return items end
+    if tostring(item.label or ""):upper():match("^FOLLOW") then return items end
   end
   local ex = api()
   if not (ex and type(ex.setLeaderParty) == "function") then return items end
@@ -127,5 +136,6 @@ end)
 mod.exports.followersIntegration = {
   available = shared.followersAvailable,
   applyMode = applyMode,
+  followerPlan = followerPlan,
   usesExternalAssets = true,
 }

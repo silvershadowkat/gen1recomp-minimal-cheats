@@ -11,7 +11,7 @@ local function eq(actual, expected, message)
   passed = passed + 1
 end
 
-local saved, hooks, events = {}, {}, {}
+local saved, hooks, events, screens = {}, {}, {}, {}
 local mod = {
   id = "minimal_cheats", path = ".", exports = {},
   save = {
@@ -27,12 +27,16 @@ local mod = {
   end },
   content = {
     balls = { each = function() return function() return nil end end },
-    screens = { register = function() end },
+    screens = { register = function(_, id, def) screens[id] = def end },
   },
   commands = { register = function() end },
   ui = {
     push = function() end,
     insertAfter = function(rows, _, item) rows[#rows + 1] = item end,
+    ListMenu = { new = function(game, title, items, opts)
+      return { game = game, title = title, items = items, wrap = opts.wrap,
+        rows = opts.rows, footer = opts.footer, onChoose = opts.onChoose }
+    end },
   },
   log = {
     info = function() end, warn = function() end,
@@ -57,6 +61,69 @@ install("modules/healing.lua", mod, shared)
 install("modules/moves_manager.lua", mod, shared)
 install("modules/dexnav.lua", mod, shared)
 install("modules/field_moves.lua", mod, shared)
+install("modules/followers_integration.lua", mod, shared)
+install("modules/display.lua", mod, shared)
+install("modules/options.lua", mod, shared)
+
+-- SilverShadow is the first normal Options row, every grouped menu wraps,
+-- and compact labels leave room between the label and right-side value.
+local optionRows = hooks["ui.options.rows"](function(_, list) return list end,
+  {}, { { id = "vanilla", label = "TEXT SPEED" } })
+eq(optionRows[1].id, "minimal_cheats", "SilverShadow heads normal Options")
+for _, id in ipairs({
+  "SilverShadowOptions", "SilverShadowBattle", "SilverShadowCapture",
+  "SilverShadowWorld", "SilverShadowHealing", "SilverShadowSupplies",
+  "SilverShadowMovement", "SilverShadowDisplay", "SilverShadowStorage",
+  "SilverShadowFollowers",
+}) do
+  local def = screens[id]
+  local menu = def.new({})
+  check(menu.wrap == true, id .. " menu wraps at both ends")
+end
+local function labels(id)
+  local found = {}
+  for _, row in ipairs(screens[id].new({}).items) do found[row.label] = true end
+  return found
+end
+local captureLabels = labels("SilverShadowCapture")
+check(captureLabels["CATCH HEAL"], "Capture uses compact Catch Heal label")
+local healingLabels = labels("SilverShadowHealing")
+check(healingLabels["MAP HEAL"] and healingLabels["BATTLE HEAL"]
+  and healingLabels["BOX HEAL"], "Healing labels fit beside values")
+local displayLabels = labels("SilverShadowDisplay")
+check(displayLabels["CAUGHT ICON"] and displayLabels["MAP BANNERS"],
+  "Display labels fit beside values")
+
+-- The menu count means Pokemon on screen when a Pokemon leads, but means
+-- Pokemon behind the trainer when the trainer leads.
+local plan = mod.exports.followersIntegration.followerPlan
+local mode, count = plan("trainer", false, 1)
+eq(mode, "follow", "Trainer-front uses follow mode")
+eq(count, 1, "Trainer-front count remains trailer count")
+mode, count = plan("pokemon", false, 1)
+eq(mode, "pokemon", "One Pokemon alone uses Pokemon mode")
+eq(count, 0, "Lead Pokemon is included in displayed count")
+mode, count = plan("pokemon", true, 1)
+eq(mode, "lead_trainer", "Trainer can trail one lead Pokemon")
+eq(count, 0, "Trainer trail does not force a second Pokemon")
+mode, count = plan("pokemon", false, 5)
+eq(count, 4, "Five Pokemon means lead plus four trailers")
+mode, count = plan("pokemon", false, 6)
+eq(count, 5, "Six Pokemon remains distinct from five")
+local oldAvailable = shared.followersAvailable
+shared.followersAvailable = function() return true end
+local followerDecorator
+for _, entry in ipairs(shared.sortedPartyDecorators()) do
+  if entry.id == "followers" then followerDecorator = entry.decorate end
+end
+local existingFollowing = { { label = "FOLLOWING" } }
+followerDecorator({}, existingFollowing, {}, {})
+eq(#existingFollowing, 1, "FOLLOWING prevents a duplicate FOLLOWER row")
+shared.followersAvailable = oldAvailable
+
+local caughtX, caughtY = mod.exports.display.caughtPosition(false)
+eq(caughtX, 87, "Classic caught icon sits beyond the HP bar")
+eq(caughtY, 18, "Classic caught icon stays off the name row")
 
 -- Existing cheat modes and link safeguards.
 for _, factor in ipairs(shared.EXP_MULTIPLIERS) do
@@ -178,7 +245,7 @@ check(not mod.exports.hasBadge(hmGame, "SURF"), "missing badge blocks field move
 
 -- SELECT arbitration wraps an existing handler. Controller and virtual/touch
 -- SELECT are consumed in free roam; non-SELECT input (including keyboard 3)
--- and unsafe/scripted contexts continue to the existing handler unchanged.
+-- and unsafe/scripted movement consumes SELECT without moving the voxel camera.
 local dexEvents, originalCalls, queued, selectPressed = {}, 0, 0, false
 local dexMod = {
   id = "minimal_cheats", exports = {},
@@ -211,8 +278,14 @@ eq(originalCalls, 1, "keyboard 3/non-SELECT still reaches Voxel")
 selectPressed = true
 host.player.inputLocked = true
 host:handleInput()
-eq(originalCalls, 2, "unsafe/battle/menu SELECT is not stolen")
+eq(originalCalls, 1, "locked overworld SELECT is not forwarded to Voxel")
+eq(queued, 1, "locked overworld SELECT does not start DexNav")
 host.player.inputLocked = false
+host.player.moving = true
+host:handleInput()
+eq(originalCalls, 1, "moving SELECT is not forwarded to Voxel")
+eq(queued, 1, "moving SELECT waits until the player stops")
+host.player.moving = false
 host:handleInput()
 eq(queued, 2, "virtual touch SELECT uses the DexNav path")
 

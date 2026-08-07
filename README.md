@@ -1,12 +1,12 @@
 # SilverShadow Mods
 
-SilverShadow Mods is an all-in-one gameplay and quality-of-life mod for [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp). It evolved from Gen1Recomp Minimal Cheats and deliberately keeps the internal mod ID `minimal_cheats`, so existing settings continue to belong to the same mod after upgrading to 2.0.0.
+SilverShadow Mods is an all-in-one gameplay and quality-of-life mod for [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp). It evolved from Gen1Recomp Minimal Cheats and deliberately keeps the internal mod ID `minimal_cheats`, so existing settings continue to belong to the same mod after upgrading to 2.x.
 
 Pokémon Blue is the primary target. Red and Yellow use the engine's live game data and version-aware encounter patches rather than a hard-coded Blue dataset.
 
 ## Install
 
-Download `silvershadow-mods-v2.0.0.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
+Download `silvershadow-mods-v2.0.1.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
 
 The installable archive has `manifest.json`, `main.lua`, and `modules/` at its root; it contains no ROM data or Pokémon artwork.
 
@@ -37,6 +37,8 @@ Normal Options contains one `SILVERSHADOW  OPEN` row. Its grouped menus contain:
 - **Storage:** Classic/Big box grid and cursor wrapping
 - **Followers:** shown only when PokéPC Followers is installed
 
+`BOX HEAL` is the Gen 3 storage behavior: when enabled, closing the storage screen heals Pokémon in boxes. It does not control the paid `HEAL ¥...` Start-menu command. Paid field-heal cost increases with each use and resets only after completing a heal with a Pokémon Center nurse; changing maps or routes does not reset it.
+
 `ON` movement is boosted by default and holding B temporarily returns to vanilla speed. `HOLD` is vanilla by default and holding B boosts it. The unified engine only adjusts player manual-step duration, calls the engine's existing modifier first, floors movement at four frames, and restores the vanilla duration before scripts.
 
 ## Compatibility and safety
@@ -44,7 +46,7 @@ Normal Options contains one `SILVERSHADOW  OPEN` row. Its grouped menus contain:
 - **Link/PvP:** gameplay cheats become inert during link battles and sessions. `affects_link` remains false by design.
 - **Dramatic Shape Voxel Mod:** SilverShadow's outer free-roam handler owns controller/touch SELECT for DexNav; keyboard `3`, Dramatic Shape's Options rows, battle SELECT, and menu SELECT remain untouched.
 - **SilverShadow Touchpad:** virtual SELECT uses the same normal input path as controller SELECT and therefore reaches DexNav.
-- **PokéPC Followers:** optional. SilverShadow supplies control/trailer coordination for Trainer/Pokémon mode, Trainer Follows, and follower counts 1–6. PokéPC remains the owner of all walker sprites.
+- **PokéPC Followers:** optional. In Trainer mode, `FOLLOWERS` is the number of Pokémon behind the trainer. In Pokémon mode, it is the total number of Pokémon on screen including the lead; `TRAINER TRAIL` independently puts the trainer behind them. PokéPC remains the owner of all walker sprites.
 
 Followers EX is not required. No PokéPC, Dramatic Shape, Stadium, follower, or ROM-derived assets are bundled. Overworld Encounters and Followers EX wild-spawn/roaming systems are intentionally not included.
 

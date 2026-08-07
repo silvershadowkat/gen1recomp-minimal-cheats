@@ -50,6 +50,7 @@ local function makeMenu(game, title, items, footer)
   local list
   list = mod.ui.ListMenu.new(game, title, rows(items), {
     rows = 6,
+    wrap = true,
     footer = footer or "A:CHANGE  B:BACK",
     onChoose = function(row)
       local item = row._silver
@@ -93,7 +94,7 @@ local menuDefs = {
     return {
       toggle("100% CATCH", "guaranteed_catch", false),
       toggle("ENDLESS BALLS", "unlimited_balls", false),
-      toggle("FULL HEAL CATCH", "catch_heal", false),
+      toggle("CATCH HEAL", "catch_heal", false),
       toggle("PERFECT DVS", "perfect_dvs", false),
     }
   end,
@@ -108,9 +109,9 @@ local menuDefs = {
   healing = function()
     return {
       toggle("POISON SAVE", "poison_save", false),
-      toggle("HEAL ON MAP CHANGE", "heal_map_change", false),
-      toggle("HEAL AFTER BATTLE", "heal_battle", false),
-      toggle("BOX HEALS", "box_heals", false),
+      toggle("MAP HEAL", "heal_map_change", false),
+      toggle("BATTLE HEAL", "heal_battle", false),
+      toggle("BOX HEAL", "box_heals", false),
     }
   end,
   supplies = function()
@@ -120,7 +121,7 @@ local menuDefs = {
           list.footer = "PC is full; free one item slot."
         end
       end),
-      action("MAX GAME COINS", function(game, list)
+      action("MAX COINS", function(game, list)
         if shared.maxCoins(game) then list.footer = "Game Corner coins set to 9999."
         else list.footer = "Unavailable during online/link play." end
       end),
@@ -137,8 +138,8 @@ local menuDefs = {
   display = function()
     return {
       toggle("XP BAR", "xp_bar", true),
-      toggle("CAUGHT INDICATOR", "caught_indicator", true),
-      toggle("LOCATION BANNERS", "location_banners", true),
+      toggle("CAUGHT ICON", "caught_indicator", true),
+      toggle("MAP BANNERS", "location_banners", true),
     }
   end,
   storage = function()
@@ -153,9 +154,9 @@ local menuDefs = {
       choice("MODE", "follower_mode", { "trainer", "pokemon" }, "trainer",
         function(v) return tostring(v):upper() end,
         function(game, value) if shared.applyFollowerMode then shared.applyFollowerMode(game, value) end end),
-      toggle("TRAINER FOLLOWS", "trainer_follows", false,
+      toggle("TRAINER TRAIL", "trainer_follows", false,
         function(game, value) if shared.applyTrainerFollows then shared.applyTrainerFollows(game, value) end end),
-      choice("FOLLOWER COUNT", "follower_count", { 1, 2, 3, 4, 5, 6 }, 1,
+      choice("FOLLOWERS", "follower_count", { 1, 2, 3, 4, 5, 6 }, 1,
         tostring, function(game, value)
           if shared.applyFollowerCount then shared.applyFollowerCount(game, value) end
         end),
@@ -187,11 +188,11 @@ end
 mod.hooks:wrap("ui.options.rows", function(next, game, current)
   local out = next(game, current)
   if type(out) ~= "table" then return out end
-  out[#out + 1] = {
+  table.insert(out, 1, {
     id = "minimal_cheats", label = "SILVERSHADOW",
     value = function() return "OPEN" end,
     activate = function(g) mod.ui.push(g, ROOT) end,
-  }
+  })
   return out
 end)
 
