@@ -3,6 +3,7 @@
 local mod, shared = ...
 
 local caughtAtStart = setmetatable({}, { __mode = "k" })
+local caughtEmbedded = setmetatable({}, { __mode = "k" })
 local banner
 
 local function expRatio(battle)
@@ -42,24 +43,123 @@ local function enemyHudVisible(battle)
     and not battle.introBalls and not battle.enemy.fainted
 end
 
-local function caughtPosition(wide)
-  return wide and 120 or 87, wide and 24 or 18
+local function caughtPosition(wide, valueWidth, status)
+  valueWidth = math.max(0, tonumber(valueWidth) or 0)
+  local valueX = wide and (status and 88 or 96) or 40
+  return valueX + valueWidth + 5, 12
 end
 
-local function drawCaught(battle)
-  if not shared.bool("caught_indicator", true) or battle.kind ~= "wild"
-      or not caughtAtStart[battle] or battle.demo or battle.ghost
-      or not enemyHudVisible(battle) then return end
+local function shouldDrawCaught(battle)
+  return shared.bool("caught_indicator", true) and battle.kind == "wild"
+      and caughtAtStart[battle] and not battle.demo and not battle.ghost
+      and enemyHudVisible(battle)
+end
+
+local function caughtValue(battle)
+  local status = battle.enemy and battle.enemy.shownStatus
+  if status and type(battle.statusLabel) == "function" then
+    return battle:statusLabel({ status = status }), true
+  end
+  local level = battle.enemy and battle.enemy.mon and battle.enemy.mon.level or 1
+  return tostring(level), false
+end
+
+local function drawCaughtGlyph(battle)
+  local Font = require("src.render.Font")
   local wide = battle.wideLayout and battle:wideLayout()
-  -- Keep the marker on the HP row, beyond the bar, where neither classic
-  -- name alignment nor Stadium A's left-aligned names can reach it.
-  local x, y = caughtPosition(wide)
+  local value, status = caughtValue(battle)
+  local x, y = caughtPosition(wide, Font.width(value), status)
   local g = love.graphics
   g.setShader()
   g.setColor(0, 0, 0, 1)
   g.circle("line", x, y, 3)
   g.line(x - 3, y, x + 3, y)
   g.circle("fill", x, y, 1)
+end
+
+local function drawCaught(battle)
+  if not shouldDrawCaught(battle) or caughtEmbedded[battle] then return end
+  drawCaughtGlyph(battle)
+end
+
+-- Dramatic Shape renders the engine HUD to a texture and snaps that texture
+-- to the window edge. A normal battle.overlay remains in the centered GB
+-- frame, so an absolute icon cannot follow the moved HUD. Embed the icon in
+-- the same HUD texture, then let Dramatic Shape move both as one unit.
+local function embedCaught(battle, layer)
+  if not layer or not shouldDrawCaught(battle)
+      or not (love and love.graphics) then return false end
+  local g = love.graphics
+  if type(g.setCanvas) ~= "function" or type(g.getCanvas) ~= "function" then
+    return false
+  end
+  local previousCanvas = g.getCanvas()
+  local previousBlend, previousAlpha = g.getBlendMode()
+  local previousShader = g.getShader and g.getShader() or nil
+  local r, green, blue, alpha = g.getColor()
+  local ok, err = pcall(function()
+    g.setCanvas(layer)
+    g.setBlendMode("alpha")
+    drawCaughtGlyph(battle)
+  end)
+  if previousCanvas then g.setCanvas(previousCanvas) else g.setCanvas() end
+  g.setBlendMode(previousBlend or "alpha", previousAlpha)
+  g.setShader(previousShader)
+  g.setColor(r, green, blue, alpha)
+  if not ok then mod.log:warn("caught HUD embed failed: %s", tostring(err)) end
+  return ok
+end
+
+local function installDramaticShapeCaught()
+  for _, id in ipairs({ "DRAMATIC_SHAPE", "DRAMATIC_SHAPE_SEAMLESS" }) do
+    local found = mod:find(id)
+    local lib = found and found.exports and found.exports.lib
+    if lib and type(lib.require) == "function" then
+      local ok, OverworldBattle = pcall(lib.require, "OverworldBattle")
+      if ok and type(OverworldBattle) == "table"
+          and type(OverworldBattle.hudTexture) == "function"
+          and type(OverworldBattle.snapHUDs) == "function" then
+        local patch = rawget(OverworldBattle, "__silverShadowCaughtPatch")
+        if not patch then
+          patch = {
+            handlers = {},
+            hudTexture = OverworldBattle.hudTexture,
+            snapHUDs = OverworldBattle.snapHUDs,
+          }
+          rawset(OverworldBattle, "__silverShadowCaughtPatch", patch)
+          OverworldBattle.hudTexture = function(battle, ...)
+            local layer = patch.hudTexture(battle, ...)
+            for _, handler in pairs(patch.handlers) do
+              if layer and handler.embed(battle, layer) then
+                handler.pending[battle] = true
+              end
+            end
+            return layer
+          end
+          OverworldBattle.snapHUDs = function(battle, ...)
+            for _, handler in pairs(patch.handlers) do
+              handler.pending[battle] = nil
+              handler.embedded[battle] = nil
+            end
+            local snapped = patch.snapHUDs(battle, ...)
+            if snapped then
+              for _, handler in pairs(patch.handlers) do
+                if handler.pending[battle] then handler.embedded[battle] = true end
+              end
+            end
+            return snapped
+          end
+        end
+        patch.handlers[mod.id] = {
+          embed = embedCaught,
+          pending = setmetatable({}, { __mode = "k" }),
+          embedded = caughtEmbedded,
+        }
+        return true
+      end
+    end
+  end
+  return false
 end
 
 mod.hooks:wrap("battle.overlay", function(next, battle)
@@ -80,6 +180,11 @@ mod.events:on("battle.started", function(event)
   if not (battle and species) then return end
   local dex = battle.game and battle.game.save and battle.game.save.pokedex
   caughtAtStart[battle] = dex and dex.owned and dex.owned[species] == true or false
+end)
+
+installDramaticShapeCaught()
+mod.events:on("game.ready", function()
+  installDramaticShapeCaught()
 end)
 
 local function locationName(game, event)
@@ -122,4 +227,5 @@ mod.exports.display = {
   expRatio = expRatio,
   locationName = locationName,
   caughtPosition = caughtPosition,
+  installDramaticShapeCaught = installDramaticShapeCaught,
 }

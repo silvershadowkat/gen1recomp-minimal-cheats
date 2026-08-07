@@ -11,7 +11,7 @@ local function eq(actual, expected, message)
   passed = passed + 1
 end
 
-local saved, hooks, events, screens = {}, {}, {}, {}
+local saved, hooks, events, screens, foundMods = {}, {}, {}, {}, {}
 local mod = {
   id = "minimal_cheats", path = ".", exports = {},
   save = {
@@ -42,7 +42,7 @@ local mod = {
     info = function() end, warn = function() end,
     error = function() end,
   },
-  find = function() return nil end,
+  find = function(_, id) return foundMods[id] end,
 }
 
 local function emit(name, payload)
@@ -62,6 +62,18 @@ install("modules/moves_manager.lua", mod, shared)
 install("modules/dexnav.lua", mod, shared)
 install("modules/field_moves.lua", mod, shared)
 install("modules/followers_integration.lua", mod, shared)
+local fakeHudLayer = {}
+local fakeOverworldBattle = {}
+fakeOverworldBattle.hudTexture = function() return fakeHudLayer end
+fakeOverworldBattle.snapHUDs = function(battle)
+  fakeOverworldBattle.hudTexture(battle, 0)
+  return true
+end
+foundMods.DRAMATIC_SHAPE = { exports = { lib = {
+  require = function(name)
+    if name == "OverworldBattle" then return fakeOverworldBattle end
+  end,
+} } }
 install("modules/display.lua", mod, shared)
 install("modules/options.lua", mod, shared)
 
@@ -110,34 +122,73 @@ mode, count = plan("pokemon", false, 5)
 eq(count, 4, "Five Pokemon means lead plus four trailers")
 mode, count = plan("pokemon", false, 6)
 eq(count, 5, "Six Pokemon remains distinct from five")
-local oldAvailable = shared.followersAvailable
-shared.followersAvailable = function() return true end
-local followerDecorator
+local followerDecorator = false
 for _, entry in ipairs(shared.sortedPartyDecorators()) do
-  if entry.id == "followers" then followerDecorator = entry.decorate end
+  if entry.id == "followers" then followerDecorator = true end
 end
-local existingFollowing = { { label = "FOLLOWING" } }
-followerDecorator({}, existingFollowing, {}, {})
-eq(#existingFollowing, 1, "FOLLOWING prevents a duplicate FOLLOWER row")
-shared.followersAvailable = oldAvailable
+check(not followerDecorator, "PokéPC exclusively owns the FOLLOWING party row")
 
-local caughtX, caughtY = mod.exports.display.caughtPosition(false)
-eq(caughtX, 87, "Classic caught icon sits beyond the HP bar")
-eq(caughtY, 18, "Classic caught icon stays off the name row")
+local caughtX, caughtY = mod.exports.display.caughtPosition(false, 8, false)
+eq(caughtX, 53, "Level 3 caught icon follows the level")
+eq(caughtY, 12, "Caught icon shares the level row")
+caughtX = mod.exports.display.caughtPosition(false, 24, false)
+eq(caughtX, 69, "Level 100 caught icon remains inside the classic HUD")
+caughtX = mod.exports.display.caughtPosition(true, 24, false)
+eq(caughtX, 125, "Level 100 caught icon remains inside the wide HUD")
+
+-- A staged battle embeds the icon in Dramatic Shape's HUD texture. The
+-- regular centered overlay then suppresses its duplicate.
+local previousLove = love
+local previousFont = package.loaded["src.render.Font"]
+package.loaded["src.render.Font"] = {
+  width = function(value) return #tostring(value) * 8 end,
+}
+local activeCanvas, embeddedCircles = nil, 0
+love = { graphics = {
+  getCanvas = function() return activeCanvas end,
+  setCanvas = function(value) activeCanvas = value end,
+  getBlendMode = function() return "alpha", "alphamultiply" end,
+  setBlendMode = function() end,
+  getShader = function() return nil end,
+  setShader = function() end,
+  getColor = function() return 1, 1, 1, 1 end,
+  setColor = function() end,
+  circle = function(mode, x)
+    if activeCanvas == fakeHudLayer and mode == "line" then
+      embeddedCircles = embeddedCircles + 1
+      eq(x, 69, "Dramatic Shape embeds the icon after level 100")
+    end
+  end,
+  line = function() end,
+  push = function() end,
+  pop = function() end,
+} }
+local stagedBattle = {
+  kind = "wild", enemy = { mon = { level = 100 }, fainted = false },
+  game = { save = { pokedex = { owned = { RATTATA = true } } } },
+  wideLayout = function() return false end,
+}
+emit("battle.started", { battle = stagedBattle, species = "RATTATA" })
+check(fakeOverworldBattle.snapHUDs(stagedBattle, {}),
+  "Dramatic Shape HUD snapshot succeeds")
+hooks["battle.overlay"](function() end, stagedBattle)
+eq(embeddedCircles, 1, "Centered overlay does not duplicate embedded icon")
+love = previousLove
+package.loaded["src.render.Font"] = previousFont
 
 -- Gen1Recomp's updater accepts SilverShadow's friendly release asset name
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.0.2",
+  tag_name = "v2.0.3",
   assets = { {
-    name = "silvershadow-mods-v2.0.2.zip",
+    name = "silvershadow-mods-v2.0.3.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.0.2", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.0.2.zip",
+eq(release.version, "2.0.3", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.0.3.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.

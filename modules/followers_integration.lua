@@ -98,30 +98,6 @@ shared.applyFollowerCount = function(game, value)
   return true
 end
 
-shared.registerPartyDecorator("followers", 40, function(game, items, mon, ctx)
-  if ctx and ctx.battle or not shared.followersAvailable(game) then return items end
-  for _, item in ipairs(items) do
-    if tostring(item.label or ""):upper():match("^FOLLOW") then return items end
-  end
-  local ex = api()
-  if not (ex and type(ex.setLeaderParty) == "function") then return items end
-  local index
-  for i, candidate in ipairs(game.save.party or {}) do if candidate == mon then index = i end end
-  if not index then return items end
-  items[#items + 1] = {
-    label = "FOLLOWER",
-    onSelect = function(selectedMon, selectedGame)
-      local chosen = index
-      for i, candidate in ipairs(selectedGame.save.party or {}) do
-        if candidate == selectedMon then chosen = i end
-      end
-      pcall(ex.setLeaderParty, selectedGame, chosen)
-      sync(selectedGame)
-    end,
-  }
-  return items
-end)
-
 if external() then loadControlEngine() end
 
 mod.events:on("game.ready", function(event)

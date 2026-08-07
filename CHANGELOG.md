@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.3 - 2026-08-07
+
+### Fixed
+
+- Removed SilverShadow's redundant `FOLLOWER` party action so PokéPC's working `FOLLOWING` selector is the sole row and continues to change the follower without rearranging the party.
+- Anchored the caught icon immediately after the enemy's level or status instead of to an absolute HP-bar coordinate.
+- Embedded the caught icon into Dramatic Shape's snapped HUD texture, keeping it attached to the level in Stadium A/B and 2D-3D A/B battles as well as the normal layout.
+
 ## 2.0.2 - 2026-08-07
 
 ### Added
