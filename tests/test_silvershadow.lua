@@ -125,6 +125,21 @@ local caughtX, caughtY = mod.exports.display.caughtPosition(false)
 eq(caughtX, 87, "Classic caught icon sits beyond the HP bar")
 eq(caughtY, 18, "Classic caught icon stays off the name row")
 
+-- Gen1Recomp's updater accepts SilverShadow's friendly release asset name
+-- even though the internal mod id remains minimal_cheats.
+local ModUpdate = require("src.mods.ModUpdate")
+local release = assert(ModUpdate.parseRelease({
+  tag_name = "v2.0.2",
+  assets = { {
+    name = "silvershadow-mods-v2.0.2.zip",
+    browser_download_url = "https://example.invalid/silvershadow.zip",
+    size = 123,
+  } },
+}, "minimal_cheats"))
+eq(release.version, "2.0.2", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.0.2.zip",
+  "Updater selects SilverShadow release ZIP")
+
 -- Existing cheat modes and link safeguards.
 for _, factor in ipairs(shared.EXP_MULTIPLIERS) do
   saved.exp_multiplier = factor

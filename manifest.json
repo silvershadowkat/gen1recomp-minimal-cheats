@@ -1,11 +1,12 @@
 {
   "id": "minimal_cheats",
   "name": "SilverShadow Mods",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "api": 2,
   "entry": "main.lua",
   "profile": "overhaul",
   "category": "MECHANIC",
+  "github": "silvershadowkat/gen1recomp-minimal-cheats",
   "game_version": ">=0.1.75 <2.0.0",
   "priority": 100,
   "dependencies": [],

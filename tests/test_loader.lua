@@ -50,8 +50,11 @@ end
 assert(run.loader.mods.minimal_cheats, "SilverShadow was not discovered")
 assert(#run.errors == 0, "loader errors: " .. table.concat(run.errors, "; "))
 assert(run.loader.exports.minimal_cheats, "SilverShadow exports were not published")
-assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.0.1",
+assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.0.2",
   "wrong runtime export version")
+assert(run.loader.mods.minimal_cheats.manifest.github
+    == "silvershadowkat/gen1recomp-minimal-cheats",
+  "GitHub update repository metadata was not loaded")
 assert(run.data.constants.bagSize == 999, "distinct bag-type capacity was not merged")
 assert(run.data.field.pcItemCap == 999, "PC item-stack capacity was not merged")
 assert(run.data.pokemon.KADABRA.evolutions[1].species == "ALAKAZAM"

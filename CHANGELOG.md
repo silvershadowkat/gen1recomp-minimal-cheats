@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.2 - 2026-08-07
+
+### Added
+
+- Added the GitHub repository metadata used by Gen1Recomp's Mods screen for update checks, version browsing, and verified release-ZIP installation.
+- Documented the one-time manual upgrade required for installs older than 2.0.2; future releases can update through Gen1Recomp.
+
 ## 2.0.1 - 2026-08-07
 
 ### Fixed

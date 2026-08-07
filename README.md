@@ -6,9 +6,11 @@ Pokémon Blue is the primary target. Red and Yellow use the engine's live game d
 
 ## Install
 
-Download `silvershadow-mods-v2.0.1.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
+Download `silvershadow-mods-v2.0.2.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
 
 The installable archive has `manifest.json`, `main.lua`, and `modules/` at its root; it contains no ROM data or Pokémon artwork.
+
+Version 2.0.2 adds Gen1Recomp launcher updates through the mod's GitHub releases. If 2.0.1 or older is installed, import 2.0.2 manually once because those older manifests do not know which repository to check. From 2.0.2 onward, Gen1Recomp can check for updates, show available versions, download the release ZIP, verify the mod ID, and replace the installed copy from its Mods screen.
 
 ## Always-active systems
 
