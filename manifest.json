@@ -1,7 +1,7 @@
 {
   "id": "minimal_cheats",
-  "name": "Minimal Cheats",
-  "version": "1.1.1",
+  "name": "SilverShadow Mods",
+  "version": "2.0.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "overhaul",
@@ -9,9 +9,9 @@
   "game_version": ">=0.1.75 <2.0.0",
   "priority": 100,
   "dependencies": [],
-  "optional_dependencies": [],
+  "optional_dependencies": ["PokePCFollowers_VoxelMerge", "DRAMATIC_SHAPE"],
   "conflicts": [],
   "affects_link": false,
-  "permissions": [],
-  "description": "Categorized single-player cheat menus for battle, world, and supplies. All gameplay cheats are disabled during online/link PvP."
+  "permissions": ["engine_internals"],
+  "description": "A modular single-player overhaul with cheats, all 151 encounters, storage, field tools, movement, display, and optional follower integration. Gameplay cheats are disabled during online/link PvP."
 }

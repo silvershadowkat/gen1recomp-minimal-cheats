@@ -29,7 +29,7 @@ PY
 )"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "archive=gen1recomp-minimal-cheats-v$VERSION.zip" >> "$GITHUB_OUTPUT"
+          echo "archive=silvershadow-mods-v$VERSION.zip" >> "$GITHUB_OUTPUT"
 
       - name: Exit if release exists
         id: release_check
@@ -54,23 +54,8 @@ PY
           ARCHIVE: ${{ steps.version.outputs.archive }}
         run: |
           set -euo pipefail
-          mkdir -p dist
-          export ARCHIVE
-          python - <<'PY'
-import os
-import zipfile
-from pathlib import Path
-
-archive = Path("dist") / Path(os.environ["ARCHIVE"])
-with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-    zf.write("main.lua", "main.lua")
-    zf.write("manifest.json", "manifest.json")
-with zipfile.ZipFile(archive) as zf:
-    names = zf.namelist()
-    expected = ["main.lua", "manifest.json"]
-    if names != expected:
-        raise SystemExit(f"Unexpected archive contents: {names!r}")
-PY
+          python tools/package.py
+          test -f "dist/$ARCHIVE"
 
       - name: Ensure tag exists
         if: steps.release_check.outputs.exists != 'true'
@@ -104,7 +89,7 @@ import re
 
 version = os.environ["VERSION"]
 text = Path("CHANGELOG.md").read_text(encoding="utf-8").splitlines()
-out = [f"Gen1Recomp Minimal Cheats v{version}", ""]
+out = [f"SilverShadow Mods v{version}", ""]
 capture = False
 
 for line in text:
@@ -134,5 +119,5 @@ PY
           set -euo pipefail
           gh release create "$TAG" "$ARCHIVE" \
             --repo "$GH_REPO" \
-            --title "Gen1Recomp Minimal Cheats $TAG" \
+            --title "SilverShadow Mods $TAG" \
             --notes-file release-notes.txt

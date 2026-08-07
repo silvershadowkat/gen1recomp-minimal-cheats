@@ -1,73 +1,59 @@
-# Gen1Recomp Minimal Cheats
+# SilverShadow Mods
 
-Gen1Recomp Minimal Cheats is a lightweight, non-invasive single-player cheat menu mod for [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp). It integrates directly into the normal in-game Options menu and uses Gen1Recomp's public Mod API, hooks, and events wherever practical instead of replacing core game files.
+SilverShadow Mods is an all-in-one gameplay and quality-of-life mod for [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp). It evolved from Gen1Recomp Minimal Cheats and deliberately keeps the internal mod ID `minimal_cheats`, so existing settings continue to belong to the same mod after upgrading to 2.0.0.
 
-## Features
+Pokémon Blue is the primary target. Red and Yellow use the engine's live game data and version-aware encounter patches rather than a hard-coded Blue dataset.
 
-Open `Options -> CHEATS` to access three categories.
+## Install
 
-### Battle
+Download `silvershadow-mods-v2.0.0.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
 
-- Infinite HP: ON/OFF
-- Infinite PP: ON/OFF
-- EXP Multiplier: x1 / x2 / x4 / x8 / x10
-- Damage Multiplier: x1 / x2 / x4 / x8 / x10 / OHKO
-- Always Hit: ON/OFF
-- Always Critical Hit: ON/OFF
-- Always Move First: ON/OFF
-- Always Escape: ON/OFF
-- 100% Catch Rate: ON/OFF
+The installable archive has `manifest.json`, `main.lua`, and `modules/` at its root; it contains no ROM data or Pokémon artwork.
 
-### World
+## Always-active systems
 
-- No Wild Encounters: ON/OFF
-- Movement Speed: x1 / x2 / x3 / x4
+- Complete All Pokémon Catchable 151 content and impossible-evolution changes
+- Useful Bag pockets, sorting, full TM/HM labels, 999 distinct bag types, and 999 distinct PC item stacks (normal per-item stacks remain capped at 99)
+- Gen 3-style storage boxes and Start/physical-PC access to Pokémon and item storage
+- Area DexNav on free-roam SELECT, using the final live encounter table
+- HM Anywhere with HM-item and badge requirements; deterministic Surf/Fish interaction uses the best owned rod
+- Moves Manager with evolutionary-line move memory and DV/EV Editor
+- Battle Move Info, reusable TMs, forgettable HMs, and the universal free TM shop
+- Start-menu Heal and Summon tools
 
-### Supplies
+These structural systems have no master toggle because other integrated systems rely on their data and UI contracts.
 
-- Endless Poké Balls: ON/OFF
-- PC Rare Candy: ON/OFF
-  - Keeps at least 99 Rare Candies in the player's item-storage PC while enabled
-  - Withdraw them, use them, or sell them, and the PC restocks them
-  - Existing stacks above 99 are never reduced
-  - The cheat will not delete another PC item if storage is already full
-- Max Game Corner Coins
-  - Sets the current coin count to 9999 when selected
+## SILVERSHADOW options
 
-## Online / PvP Safety
+Normal Options contains one `SILVERSHADOW  OPEN` row. Its grouped menus contain:
 
-This mod is intended for single-player use. Battle-affecting cheats are explicitly disabled during online/link PvP and fall back to vanilla game behavior.
+- **Battle:** Infinite HP/PP, EXP x1/x2/x4/x8/x10, damage x1/x2/x4/x8/x10/OHKO, Always Hit/Crit/First/Escape
+- **Capture:** 100% Catch, Endless Balls, Full Heal Catch, Perfect DVs
+- **World:** No Encounters and Lights On
+- **Healing:** Poison Save, Heal on Map Change, Heal after Battle, Box Heals
+- **Supplies:** PC Rare Candy (target 99) and Max Game Coins (9999)
+- **Movement:** x1.5/x2/x3/x4 and independent OFF/ON/HOLD behavior for foot, bike, and surf movement
+- **Display:** XP Bar, caught indicator, and location banners (all on by default)
+- **Storage:** Classic/Big box grid and cursor wrapping
+- **Followers:** shown only when PokéPC Followers is installed
 
-The implementation uses multiple safeguards: direct `battle.kind == "link"` checks where the hook provides a battle object, an active link-battle/session lock for hooks without one, and an additional link-only context check for turn-order handling.
+`ON` movement is boosted by default and holding B temporarily returns to vanilla speed. `HOLD` is vanilla by default and holding B boosts it. The unified engine only adjusts player manual-step duration, calls the engine's existing modifier first, floors movement at four frames, and restores the vanilla duration before scripts.
 
-The manifest keeps `affects_link` set to `false` because the mod is designed to be inert for link-battle gameplay.
+## Compatibility and safety
 
-## Runtime Behavior
+- **Link/PvP:** gameplay cheats become inert during link battles and sessions. `affects_link` remains false by design.
+- **Dramatic Shape Voxel Mod:** SilverShadow's outer free-roam handler owns controller/touch SELECT for DexNav; keyboard `3`, Dramatic Shape's Options rows, battle SELECT, and menu SELECT remain untouched.
+- **SilverShadow Touchpad:** virtual SELECT uses the same normal input path as controller SELECT and therefore reaches DexNav.
+- **PokéPC Followers:** optional. SilverShadow supplies control/trailer coordination for Trainer/Pokémon mode, Trainer Follows, and follower counts 1–6. PokéPC remains the owner of all walker sprites.
 
-Cheat settings are persistent and are read when their relevant hooks/events fire, so settings can be changed without restarting the game.
-
-Existing v1.0.0 setting keys are preserved, so upgrading does not intentionally reset the original cheat choices.
-
-## Installation
-
-1. Open the GitHub Releases page.
-2. Download `gen1recomp-minimal-cheats-vX.X.X.zip`.
-3. Open Gen1Recomp.
-4. Use Gen1Recomp's mod ZIP import/install function.
-5. Enable the mod if required.
-6. Open `Options -> CHEATS`.
-7. Configure the desired cheats.
-
-Do **not** use GitHub's automatic `Source code.zip` or `Source code.tar.gz` downloads as the installable mod. Download the specifically named release ZIP asset instead.
+Followers EX is not required. No PokéPC, Dramatic Shape, Stadium, follower, or ROM-derived assets are bundled. Overworld Encounters and Followers EX wild-spawn/roaming systems are intentionally not included.
 
 ## Development
 
-The repository is the editable source of truth. Edit the unzipped source files, especially `main.lua`, rather than editing a generated release ZIP.
+Runtime files are selected by `runtime-files.txt`. Run the headless suites with the Gen1Recomp LuaJIT executable and `tests/test_silvershadow.lua` plus `tests/test_loader.lua`, then run `python tools/package.py` to build and validate both install formats. The same packaging script is used by the release workflow.
 
-Keep changes non-invasive where practical, prefer public Gen1Recomp Mod API hooks/events, preserve link/PvP safety, and test gameplay changes before publishing a release.
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for references and license attribution.
 
 ## Disclaimer
 
-This is an unofficial community mod and is not affiliated with or endorsed by Nintendo, The Pokémon Company, Game Freak, or the Gen1Recomp developers.
-
-No ROM or Pokémon game assets are included.
+This unofficial community mod is not affiliated with or endorsed by Nintendo, The Pokémon Company, Game Freak, or the Gen1Recomp developers. No ROM or Pokémon game assets are included.

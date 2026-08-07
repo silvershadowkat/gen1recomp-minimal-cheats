@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.0 - 2026-08-07
+
+### SilverShadow Mods integration
+
+- Rebranded the visible mod and Options UI while retaining the `minimal_cheats` ID and existing setting keys.
+- Refactored the runtime into deliberately ordered modules with coordinated owners for shared Options, Start, party, PC, input-step, and movement seams.
+- Integrated All Pokémon Catchable 151, Useful Bag, Gen 3 Boxes, PC Anywhere, Area DexNav, HM Anywhere, Moves Manager, DV/EV Editor, Battle Move Info, Heal Anywhere, reusable machines, Summon, and the universal TM shop.
+- Added Poison Save, Full Heal Catch, Perfect DVs, map/battle/box healing, Lights On, XP bar, caught indicator, and location banners.
+- Replaced the old speed cheat with player-only foot/bike/surf OFF/ON/HOLD movement using x1.5/x2/x3/x4, a four-frame floor, and script-safe duration restoration.
+- Added optional PokéPC Followers control integration without bundling external assets or wild-spawn functionality.
+- Added Dramatic Shape/Touchpad SELECT arbitration so DexNav owns only safe free-roam SELECT.
+- Added a 96-assertion headless regression suite, packaged Mod API loader test, and deterministic local/CI packaging validation.
+- Changed the release asset to `silvershadow-mods-v2.0.0.zip` and expanded the workflow for the modular runtime.
+
 ## 1.1.1 - 2026-08-07
 
 ### Fixed

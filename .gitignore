@@ -4,3 +4,7 @@ release/
 *.log
 .DS_Store
 Thumbs.db
+references/
+work/
+__pycache__/
+*.pyc
