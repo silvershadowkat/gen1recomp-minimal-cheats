@@ -1,0 +1,138 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read manifest version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python - <<'PY'
+import json
+from pathlib import Path
+print(json.loads(Path("manifest.json").read_text(encoding="utf-8"))["version"])
+PY
+)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "archive=gen1recomp-minimal-cheats-v$VERSION.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Exit if release exists
+        id: release_check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; exiting."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build archive
+        if: steps.release_check.outputs.exists != 'true'
+        shell: bash
+        env:
+          ARCHIVE: ${{ steps.version.outputs.archive }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          export ARCHIVE
+          python - <<'PY'
+import os
+import zipfile
+from pathlib import Path
+
+archive = Path("dist") / Path(os.environ["ARCHIVE"])
+with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+    zf.write("main.lua", "main.lua")
+    zf.write("manifest.json", "manifest.json")
+with zipfile.ZipFile(archive) as zf:
+    names = zf.namelist()
+    expected = ["main.lua", "manifest.json"]
+    if names != expected:
+        raise SystemExit(f"Unexpected archive contents: {names!r}")
+PY
+
+      - name: Ensure tag exists
+        if: steps.release_check.outputs.exists != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.tag }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists."
+            exit 0
+          fi
+
+          git tag "$TAG" "$SHA"
+          git push origin "$TAG"
+
+      - name: Prepare release notes
+        if: steps.release_check.outputs.exists != 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+from pathlib import Path
+import os
+import re
+
+version = os.environ["VERSION"]
+text = Path("CHANGELOG.md").read_text(encoding="utf-8").splitlines()
+out = [f"Gen1Recomp Minimal Cheats v{version}", ""]
+capture = False
+
+for line in text:
+    if re.match(rf"^##\s+{re.escape(version)}\s+-\s+", line):
+        capture = True
+        continue
+    if capture and line.startswith("## "):
+        break
+    if capture:
+        out.append(line)
+
+if len(out) == 2:
+    out.append("Automated release.")
+
+Path("release-notes.txt").write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+PY
+
+      - name: Publish release
+        if: steps.release_check.outputs.exists != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.tag }}
+          ARCHIVE: dist/${{ steps.version.outputs.archive }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" "$ARCHIVE" \
+            --repo "$GH_REPO" \
+            --title "Gen1Recomp Minimal Cheats $TAG" \
+            --notes-file release-notes.txt

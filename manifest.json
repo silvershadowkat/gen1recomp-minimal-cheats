@@ -1,0 +1,17 @@
+{
+  "id": "minimal_cheats",
+  "name": "Minimal Cheats",
+  "version": "1.0.0",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "overhaul",
+  "category": "MECHANIC",
+  "game_version": ">=0.1.75 <2.0.0",
+  "priority": 100,
+  "dependencies": [],
+  "optional_dependencies": [],
+  "conflicts": [],
+  "affects_link": false,
+  "permissions": [],
+  "description": "Runtime single-player cheat toggles in Options: infinite HP/PP, EXP multipliers, unlimited Poke Balls, and guaranteed catches."
+}
