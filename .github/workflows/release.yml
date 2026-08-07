@@ -21,12 +21,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="$(python - <<'PY'
-import json
-from pathlib import Path
-print(json.loads(Path("manifest.json").read_text(encoding="utf-8"))["version"])
-PY
-)"
+          VERSION="$(python -c 'import json; print(json.load(open("manifest.json", encoding="utf-8"))["version"])')"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "archive=silvershadow-mods-v$VERSION.zip" >> "$GITHUB_OUTPUT"
@@ -82,30 +77,7 @@ PY
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          python - <<'PY'
-from pathlib import Path
-import os
-import re
-
-version = os.environ["VERSION"]
-text = Path("CHANGELOG.md").read_text(encoding="utf-8").splitlines()
-out = [f"SilverShadow Mods v{version}", ""]
-capture = False
-
-for line in text:
-    if re.match(rf"^##\s+{re.escape(version)}\s+-\s+", line):
-        capture = True
-        continue
-    if capture and line.startswith("## "):
-        break
-    if capture:
-        out.append(line)
-
-if len(out) == 2:
-    out.append("Automated release.")
-
-Path("release-notes.txt").write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
-PY
+          python tools/release_notes.py "$VERSION" release-notes.txt
 
       - name: Publish release
         if: steps.release_check.outputs.exists != 'true'
