@@ -44,12 +44,10 @@ local function enemyHudVisible(battle)
 end
 
 local function caughtPosition(wide, valueWidth, status)
-  valueWidth = math.max(0, tonumber(valueWidth) or 0)
-  local valueX = wide and (status and 88 or 96) or 40
+  -- Reserve the empty tile immediately before <LV>/status. This keeps the
+  -- marker above the HP row and completely independent of level digit count.
   local radius = wide and 3 or 4
-  local panelRight = wide and 128 or 88
-  local x = math.min(valueX + valueWidth + 8, panelRight - radius)
-  return x, 12, radius
+  return wide and 80 or 24, 12, radius
 end
 
 local function shouldDrawCaught(battle)

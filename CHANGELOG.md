@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.5 - 2026-08-07
+
+### Changed
+
+- Moved the colored caught Poké Ball into the reserved space before the enemy level label, above the HP row, so levels 1 through 100 never affect its position.
+- Changed the title screen's `EXIT GAME` action to return to the Gen1Recomp launcher, including Android direct-to-game launches.
+
 ## 2.0.4 - 2026-08-07
 
 ### Fixed

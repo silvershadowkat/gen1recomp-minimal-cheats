@@ -62,6 +62,7 @@ install("modules/moves_manager.lua", mod, shared)
 install("modules/dexnav.lua", mod, shared)
 install("modules/field_moves.lua", mod, shared)
 install("modules/followers_integration.lua", mod, shared)
+install("modules/title_exit.lua", mod, shared)
 local fakeHudLayer = {}
 local fakeOverworldBattle = {}
 fakeOverworldBattle.hudTexture = function() return fakeHudLayer end
@@ -105,6 +106,32 @@ check(healingLabels["MAP HEAL"] and healingLabels["BATTLE HEAL"]
 local displayLabels = labels("SilverShadowDisplay")
 check(displayLabels["CAUGHT ICON"] and displayLabels["MAP BANNERS"],
   "Display labels fit beside values")
+
+-- EXIT GAME writes the one-shot launcher marker and uses the host's Android-
+-- safe restart bridge instead of falling through to a normal process quit.
+local previousLoveForExit = love
+local previousHostShell = package.loaded["src.core.HostShell"]
+local launcherMarker, exitRestarted, originalExit = nil, false, false
+love = { filesystem = { write = function(path, value)
+  launcherMarker = { path = path, value = value }
+  return true
+end } }
+package.loaded["src.core.HostShell"] = { restart = function()
+  exitRestarted = true
+end }
+local titleItems = hooks["ui.title_menu.items"](
+  function(_, items) return items end, {}, {
+    { label = "NEW GAME" },
+    { label = "EXIT GAME", onSelect = function() originalExit = true end },
+  })
+titleItems[2].onSelect()
+eq(launcherMarker.path, "relaunch_to_launcher.txt",
+  "Title exit writes the launcher restart marker")
+eq(launcherMarker.value, "1", "Title exit writes a one-shot marker")
+check(exitRestarted, "Title exit invokes the host restart bridge")
+check(not originalExit, "Title exit does not quit to the operating system")
+package.loaded["src.core.HostShell"] = previousHostShell
+love = previousLoveForExit
 
 -- The menu count means Pokemon on screen when a Pokemon leads, but means
 -- Pokemon behind the trainer when the trainer leads.
@@ -151,13 +178,13 @@ eq(saved.follower_count, 1, "Pokemon mode restores its required visible lead")
 
 local caughtX, caughtY, caughtRadius =
   mod.exports.display.caughtPosition(false, 8, false)
-eq(caughtX, 56, "Level 3 caught icon has space after the level")
+eq(caughtX, 24, "Classic caught icon sits before the level label")
 eq(caughtY, 12, "Caught icon shares the level row")
 eq(caughtRadius, 4, "Classic HUD uses a readable Poke Ball radius")
 caughtX = mod.exports.display.caughtPosition(false, 24, false)
-eq(caughtX, 72, "Level 100 caught icon remains inside the classic HUD")
+eq(caughtX, 24, "Level 100 does not move the classic caught icon")
 caughtX, _, caughtRadius = mod.exports.display.caughtPosition(true, 24, false)
-eq(caughtX, 125, "Level 100 caught icon remains inside the wide HUD")
+eq(caughtX, 80, "Wide caught icon sits before the level label")
 eq(caughtRadius, 3, "Wide HUD shrinks the Poke Ball to stay contained")
 
 -- A staged battle embeds the icon in Dramatic Shape's HUD texture. The
@@ -187,7 +214,7 @@ love = { graphics = {
   circle = function(mode, x)
     if activeCanvas == fakeHudLayer and mode == "fill" then
       embeddedBalls = embeddedBalls + 1
-      eq(x, 72, "Dramatic Shape embeds the Poke Ball after level 100")
+      eq(x, 24, "Dramatic Shape embeds the Poke Ball before the level")
     end
   end,
   line = function() end,
@@ -214,15 +241,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.0.4",
+  tag_name = "v2.0.5",
   assets = { {
-    name = "silvershadow-mods-v2.0.4.zip",
+    name = "silvershadow-mods-v2.0.5.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.0.4", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.0.4.zip",
+eq(release.version, "2.0.5", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.0.5.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.

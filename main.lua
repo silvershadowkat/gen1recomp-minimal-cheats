@@ -1,4 +1,4 @@
--- SilverShadow Mods 2.0.4
+-- SilverShadow Mods 2.0.5
 -- One entry point, deterministic module order, and one shared service table.
 
 return function(mod)
@@ -45,11 +45,12 @@ return function(mod)
     "modules/display.lua",
     "modules/pc.lua",
     "modules/followers_integration.lua",
+    "modules/title_exit.lua",
     "modules/options.lua",
     "modules/ui_hooks.lua",
   }
 
   for _, path in ipairs(modules) do loadModule(path, shared) end
   mod.exports.silvershadow = shared
-  mod.log:info("SilverShadow Mods 2.0.4 loaded")
+  mod.log:info("SilverShadow Mods 2.0.5 loaded")
 end
