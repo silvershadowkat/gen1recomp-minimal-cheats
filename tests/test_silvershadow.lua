@@ -35,6 +35,8 @@ local mod = {
   end },
   content = {
     balls = { each = function() return function() return nil end end },
+    constants = { patch = function() end },
+    field = { patch = function() end },
     screens = { register = function(_, id, def) screens[id] = def end },
   },
   commands = { register = function() end },
@@ -63,6 +65,8 @@ local function install(path, ...)
 end
 
 local shared = install("modules/core.lua", mod)
+install("modules/useful_bag.lua", mod, shared)
+install("modules/pc.lua", mod, shared)
 install("modules/extended_levels.lua", mod, shared)
 install("modules/cheats.lua", mod, shared)
 install("modules/movement.lua", mod, shared)
@@ -87,6 +91,120 @@ foundMods.DRAMATIC_SHAPE = { exports = { lib = {
 } } }
 install("modules/display.lua", mod, shared)
 install("modules/options.lua", mod, shared)
+
+-- The item editor is driven by live item records, preserves their native ROM
+-- order, and rejects every machine, key item, badge, and placeholder slot.
+local itemTools = mod.exports.usefulBag
+local itemGame = {
+  save = { inventory = {}, pcItems = {}, money = 0 },
+  data = {
+    constants = { bagSize = 999 },
+    field = { pcItemCap = 999 },
+    items = {
+      ESCAPE_ROPE = { name = "ESCAPE ROPE", index = 10, price = 550 },
+      POTION = { name = "POTION", index = 20, price = 300 },
+      GREAT_BALL = { name = "GREAT BALL", index = 4, price = 600,
+        ball = "GREAT_BALL" },
+      POKE_BALL = { name = "POKE BALL", index = 5, price = 200,
+        ball = "POKE_BALL" },
+      X_ATTACK = { name = "X ATTACK", index = 30, price = 500 },
+      TM_TEST = { name = "TM01", index = 40, price = 3000,
+        machine = { kind = "TM", number = 1, move = "TACKLE" } },
+      HM_TEST = { name = "HM01", index = 41, price = 0,
+        machine = { kind = "HM", number = 1, move = "CUT" } },
+      BICYCLE = { name = "BICYCLE", index = 6, price = 0, keyItem = true },
+      ITEM_2C = { name = "?????", index = 44, price = 0 },
+      BOULDERBADGE = { name = "BOULDERBADGE", index = 60, price = 0 },
+    },
+    moves = {},
+  },
+}
+local ballCatalog = itemTools.catalogIds(itemGame, "balls")
+eq(#ballCatalog, 2, "Ball add catalogue contains only live ball records")
+eq(ballCatalog[1], "GREAT_BALL",
+  "Add catalogue follows native ROM order instead of alphabetical order")
+eq(ballCatalog[2], "POKE_BALL", "Native ball order remains stable")
+for _, id in ipairs({ "TM_TEST", "HM_TEST", "BICYCLE", "ITEM_2C",
+                       "BOULDERBADGE" }) do
+  check(not itemTools.editable(itemGame.data, id),
+    id .. " is excluded from item creation and quantity editing")
+end
+check(itemTools.addQuantity(itemGame, "bag", "POTION", 5),
+  "Bag editor creates a normal item stack")
+eq(itemGame.save.inventory.POTION, 5, "Bag add quantity is exact")
+check(itemTools.setQuantity(itemGame, "bag", "POTION", 42),
+  "Bag editor changes an existing quantity")
+eq(itemGame.save.inventory.POTION, 42, "Bag quantity editor stores 1-99")
+check(not itemTools.addQuantity(itemGame, "bag", "TM_TEST", 1),
+  "Bag editor refuses TMs")
+check(not itemTools.setQuantity(itemGame, "bag", "BICYCLE", 2),
+  "Bag editor refuses key-item quantity changes")
+check(itemTools.addQuantity(itemGame, "pc", "ESCAPE_ROPE", 7),
+  "PC editor creates a normal item stack")
+eq(itemGame.save.pcItems.ESCAPE_ROPE, 7, "PC add quantity is exact")
+check(itemTools.setQuantity(itemGame, "pc", "ESCAPE_ROPE", 99),
+  "PC editor changes an existing quantity")
+eq(itemGame.save.pcItems.ESCAPE_ROPE, 99, "PC quantity cap reaches 99")
+check(not itemTools.addQuantity(itemGame, "pc", "ESCAPE_ROPE", 1),
+  "PC editor refuses stacks above 99")
+shared.linkBattleActive = true
+check(not itemTools.setQuantity(itemGame, "bag", "POTION", 10),
+  "Item quantity editing is inert during link play")
+eq(itemGame.save.inventory.POTION, 42,
+  "Link safety leaves the bag quantity unchanged")
+shared.linkBattleActive = false
+check(itemTools.addQuantity(itemGame, "bag", "ESCAPE_ROPE", 1),
+  "Bag setup can add a second native item")
+local stackItems = {}
+itemGame.stack = {
+  push = function(_, value) stackItems[#stackItems + 1] = value end,
+  pop = function() return table.remove(stackItems) end,
+  top = function() return stackItems[#stackItems] end,
+}
+local bagEditor = screens.BagMenu.new(itemGame, {})
+bagEditor.onChoose(bagEditor.items[1], bagEditor)
+local itemActions = itemGame.stack:top()
+local hasQuantity = false
+for _, row in ipairs(itemActions.items) do
+  if row.label == "QUANTITY" then hasQuantity = true end
+end
+check(hasQuantity, "An ordinary bag item's USE/TOSS menu adds QUANTITY")
+stackItems = {}
+local emptyPocketGame = {
+  save = { inventory = {}, pcItems = {}, money = 0 },
+  data = itemGame.data,
+  stack = itemGame.stack,
+  input = { wasPressed = function(_, key) return key == "select" end },
+}
+local emptyPocketBag = screens.BagMenu.new(emptyPocketGame, {})
+emptyPocketBag:update(0)
+eq(emptyPocketGame.stack:top().title, "ADD ITEMS",
+  "SELECT opens the add catalogue even when the current pocket is empty")
+local pcItemEditor = screens[itemTools.itemEditorScreen].new(
+  itemGame, { store = "pc" })
+eq(pcItemEditor.title, "PC ITEMS", "PC item editor opens in the Items pocket")
+eq(pcItemEditor.items[1].value, "ESCAPE_ROPE",
+  "PC item editor projects existing editable stacks")
+stackItems = {}
+pcItemEditor.onChoose(pcItemEditor.items[1])
+local pcActions = itemGame.stack:top()
+local pcQuantity, pcRemove = false, false
+for _, row in ipairs(pcActions.items) do
+  if row.label == "QUANTITY" then pcQuantity = true end
+  if row.label == "REMOVE" then pcRemove = true end
+end
+check(pcQuantity and pcRemove,
+  "Existing PC stacks expose quantity and removal actions")
+stackItems = {}
+itemGame.input = { wasPressed = function(_, key) return key == "select" end }
+pcItemEditor:update(0)
+eq(itemGame.stack:top().title, "ADD ITEMS",
+  "SELECT opens the active PC pocket's add catalogue")
+local integratedPc = screens.SilverShadowPC.new(itemGame)
+local integratedLabels = {}
+for _, row in ipairs(integratedPc.items) do integratedLabels[row.label] = true end
+check(integratedLabels["EDIT PC ITEMS"],
+  "Start PC exposes the categorized PC item editor")
 
 -- SilverShadow is the first normal Options row, every grouped menu wraps,
 -- and compact labels leave room between the label and right-side value.
@@ -344,15 +462,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.1.5",
+  tag_name = "v2.1.6",
   assets = { {
-    name = "silvershadow-mods-v2.1.5.zip",
+    name = "silvershadow-mods-v2.1.6.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.1.5", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.1.5.zip",
+eq(release.version, "2.1.6", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.1.6.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.

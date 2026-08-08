@@ -6,7 +6,7 @@ Pokémon Blue is the primary target. Red and Yellow use the engine's live game d
 
 ## Install
 
-Download `silvershadow-mods-v2.1.5.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
+Download `silvershadow-mods-v2.1.6.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
 
 The installable archive has `manifest.json`, `main.lua`, and `modules/` at its root; it contains no ROM data or Pokémon artwork.
 
@@ -15,7 +15,7 @@ Version 2.0.2 adds Gen1Recomp launcher updates through the mod's GitHub releases
 ## Always-active systems
 
 - Complete All Pokémon Catchable 151 content and impossible-evolution changes
-- Useful Bag pockets, sorting, full TM/HM labels, 999 distinct bag types, and 999 distinct PC item stacks (normal per-item stacks remain capped at 99)
+- Useful Bag pockets, sorting, full TM/HM labels, safe ordinary-item creation and quantity editing, 999 distinct bag types, and 999 distinct PC item stacks (normal per-item stacks remain capped at 99)
 - Gen 3-style storage boxes and Start/physical-PC access to Pokémon and item storage
 - Area DexNav on free-roam SELECT, using the final live encounter table
 - HM Anywhere with HM-item and badge requirements; deterministic Surf/Fish interaction uses the best owned rod
@@ -25,6 +25,15 @@ Version 2.0.2 adds Gen1Recomp launcher updates through the mod's GitHub releases
 - Start-menu Heal and Summon tools
 
 These structural systems have no master toggle because other integrated systems rely on their data and UI contracts.
+
+In the normal Bag, use Left/Right to choose a pocket and press SELECT to open
+that pocket's free item catalogue. Items follow the game's native ROM order;
+choose one, choose 1-99 to add, and confirm. Selecting an ordinary owned item
+also adds `QUANTITY` beside the normal `USE` and `TOSS` actions. Start -> PC
+and physical PCs expose `EDIT PC ITEMS`, with the same pocket catalogue plus
+exact quantity and removal actions for PC stacks. TMs, HMs, Key Items, badges,
+and unused placeholder records are excluded from all editor actions. Normal
+mart stock, badge progression, prices, and sell values are unchanged.
 
 ## SILVERSHADOW options
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.6 - 2026-08-08
+
+### Added
+
+- Add a safe, zero-cost ordinary-item catalogue to each editable Useful Bag pocket. Press SELECT on a pocket, choose from the live Red/Blue/Yellow item registry in native game order, choose a quantity, and confirm.
+- Add `QUANTITY` to ordinary owned items' existing Bag `USE` / `TOSS` menu, allowing an exact stack size from 1 through 99.
+- Add `EDIT PC ITEMS` to Start-menu and physical-PC storage, with categorized add, exact-quantity, and removal actions for PC item stacks.
+
+### Safety
+
+- Exclude all TMs, HMs, Key Items, badges, and unused placeholder records from creation and quantity editing.
+- Keep item editing inert during link play and preserve normal mart stock, badge progression, prices, and sell values.
+
 ## 2.1.5 - 2026-08-08
 
 ### Fixed

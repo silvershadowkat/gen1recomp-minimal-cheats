@@ -1,7 +1,7 @@
 {
   "id": "minimal_cheats",
   "name": "SilverShadow Mods",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "api": 2,
   "entry": "main.lua",
   "profile": "overhaul",

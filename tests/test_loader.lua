@@ -50,7 +50,7 @@ end
 assert(run.loader.mods.minimal_cheats, "SilverShadow was not discovered")
 assert(#run.errors == 0, "loader errors: " .. table.concat(run.errors, "; "))
 assert(run.loader.exports.minimal_cheats, "SilverShadow exports were not published")
-assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.1.5",
+assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.1.6",
   "wrong runtime export version")
 assert(run.loader.mods.minimal_cheats.manifest.github
     == "silvershadowkat/gen1recomp-minimal-cheats",
@@ -67,6 +67,16 @@ assert(run.loader.exports.minimal_cheats.boxScreen,
   "Gen 3 box screen was not exported")
 assert(run.loader.exports.minimal_cheats.usefulBag.perItemCap == 99,
   "normal per-item quantity cap changed")
+local usefulBag = run.loader.exports.minimal_cheats.usefulBag
+assert(usefulBag.itemEditorScreen == "SilverShadowItemEditor",
+  "categorized item editor screen was not packaged")
+assert(usefulBag.editable(run.data, "FIX_POTION")
+    and usefulBag.editable(run.data, "FIX_BALL")
+    and not usefulBag.editable(run.data, "FIX_TM"),
+  "packaged item editor does not enforce the machine exclusion")
+local fixtureBalls = usefulBag.catalogIds({ data = run.data }, "balls")
+assert(#fixtureBalls == 1 and fixtureBalls[1] == "FIX_BALL",
+  "packaged item catalogue does not use the live item registry")
 assert(type(run.loader.exports.minimal_cheats.freeFly) == "table"
     and type(run.loader.exports.minimal_cheats.freeFly.isFlying) == "function",
   "SilverShadow Free Fly API was not packaged")
