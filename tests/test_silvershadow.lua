@@ -147,6 +147,17 @@ mode, count = plan("pokemon", false, 5)
 eq(count, 4, "Five Pokemon means lead plus four trailers")
 mode, count = plan("pokemon", false, 6)
 eq(count, 5, "Six Pokemon remains distinct from five")
+shared.set("follower_mode", "pokemon")
+shared.set("trainer_follows", false)
+check(not mod.exports.freeFly.trainerRides(),
+  "Pokemon lead with Trainer Trail off travels without the trainer")
+shared.set("trainer_follows", true)
+check(mod.exports.freeFly.trainerRides(),
+  "Pokemon lead with Trainer Trail on keeps the trainer riding")
+shared.set("follower_mode", "trainer")
+shared.set("trainer_follows", false)
+check(mod.exports.freeFly.trainerRides(),
+  "Trainer-front mode always keeps the trainer riding")
 local followerDecorator = false
 local freeFlyDecorator
 local fieldMovesDecorator
@@ -333,15 +344,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.1.4",
+  tag_name = "v2.1.5",
   assets = { {
-    name = "silvershadow-mods-v2.1.4.zip",
+    name = "silvershadow-mods-v2.1.5.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.1.4", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.1.4.zip",
+eq(release.version, "2.1.5", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.1.5.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.

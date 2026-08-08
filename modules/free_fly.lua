@@ -28,6 +28,11 @@ local function enabled(key, default)
   return shared.bool(key, default)
 end
 
+local function trainerRides()
+  return shared.get("follower_mode", "trainer") ~= "pokemon"
+    or shared.bool("trainer_follows", false)
+end
+
 local function cruiseHeight()
   return HEIGHTS[shared.allowed("fly_height", shared.FLY_HEIGHTS, "MED")] or 56
 end
@@ -212,6 +217,7 @@ mod.exports.freeFly = {
   mount = function() return flying() and state.mountMon or nil end,
   eligible = eligibleFlyer,
   surfAllowed = surfAllowed,
+  trainerRides = trainerRides,
   classify = function(game, mon, travelMode, overWater, overLand)
     -- Move Editor knowledge is authoritative even when the species could not
     -- learn the move naturally. A dual FLY/SURF user follows in the style of
@@ -371,6 +377,15 @@ mod.events:on("game.ready", function(event)
     return genericCache[key]
   end
 
+  local function townFlyLead()
+    local engine = followerEngine()
+    if engine and type(engine.getLeaderMon) == "function" then
+      local ok, mon = pcall(engine.getLeaderMon, game)
+      if ok and mon then return mon end
+    end
+    return firstHealthyKnower(game, "FLY")
+  end
+
   local function mountScale(mon)
     local def = mon and game.data.pokemon and game.data.pokemon[mon.species]
     local dex = (def and def.dexEntry) or {}
@@ -431,7 +446,7 @@ mod.events:on("game.ready", function(event)
   end
 
   local function syncRider(ow, active)
-    if not active then removeRider(ow); return end
+    if not active or not trainerRides() then removeRider(ow); return end
     local player = ow.player
     if not state.rider or state.rider.player ~= player then
       removeRider(ow)
@@ -478,8 +493,11 @@ mod.events:on("game.ready", function(event)
     local mon = self.freeFlying and state.mountMon
       or (self.surfing and self.silverSurfMount)
     local mount = mon and genericMount(mon)
-    local trainer = getTrainerSprite()
-    if not (mount and trainer) then return original(self, camX, camY) end
+    local showTrainer = trainerRides()
+    local trainer = showTrainer and getTrainerSprite() or nil
+    if not mount or (showTrainer and not trainer) then
+      return original(self, camX, camY)
+    end
     local lift = playerTravelLift(self)
     local scale = mountScale(mon)
     local x, y = self.px, self.py - lift
@@ -495,8 +513,10 @@ mod.events:on("game.ready", function(event)
         self.py + 14 - camY, 8 * scale, 3)
     end
     love.graphics.setColor(1, 1, 1, 1)
-    trainer:draw(x, y - math.floor(3 + scale), camX, camY,
-      self.facing, 0, false, true)
+    if trainer then
+      trainer:draw(x, y - math.floor(3 + scale), camX, camY,
+        self.facing, 0, false, true)
+    end
     if scale ~= 1 then
       local fx, fy = math.floor(x + 8 - camX), math.floor(y + 12 - camY)
       love.graphics.push()
@@ -591,6 +611,15 @@ mod.events:on("game.ready", function(event)
       clearPlayerTravel(p)
       p.silverTravelLift = sMon and 2 or nil
       syncRider(ow, sMon ~= nil)
+      -- The stock town-FLY effect caches its renderer in birdSprite. Keep
+      -- our solo lead through both the departure and arrival paths, then
+      -- release it so later trainer-front flights use the normal bird again.
+      if ow._silverSoloTownFly
+          and not (ow.flyAnim or ow.flyArrive or ow.playerHidden
+            or ow.arriveWarp == "fly") then
+        ow._silverSoloTownFly = nil
+        ow.birdSprite = nil
+      end
       return
     end
     if not skyAbove(game, ow.map and ow.map.def) then
@@ -749,6 +778,15 @@ mod.events:on("game.ready", function(event)
       return crossed
     end
   end
+  if not OC.__silverTownFlyWrapped then
+    OC.__silverTownFlyWrapped = true
+    OC.__silverFlyOrigTownFly = OC.flyTo
+    OC.flyTo = function(self, ...)
+      local prepare = OC.__silverFlyPrepareTownFly
+      if prepare then prepare(self) end
+      return OC.__silverFlyOrigTownFly(self, ...)
+    end
+  end
   OC.__silverFlyTick = tickFlight
   OC.__silverFlyInput = function(ow)
     if ow.player and ow.player.freeFlying and state.phase == "approach" then
@@ -803,6 +841,21 @@ mod.events:on("game.ready", function(event)
         if entity == state.rider then return end
       end
       table.insert(ow.entities, state.rider)
+    end
+  end
+  OC.__silverFlyPrepareTownFly = function(ow)
+    -- FlyMenu can start the stock animation between overworld ticks. Remove
+    -- the continuous-travel rider now so it cannot flash for one draw beside
+    -- a solo Pokemon lead.
+    removeRider(ow)
+    ow._silverSoloTownFly = nil
+    ow.birdSprite = nil
+    if trainerRides() then return end
+    local mon = townFlyLead()
+    local sprite = mon and genericMount(mon)
+    if sprite then
+      ow.birdSprite = sprite
+      ow._silverSoloTownFly = true
     end
   end
 

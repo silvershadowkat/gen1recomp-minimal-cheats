@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.5 - 2026-08-08
+
+### Fixed
+
+- Respect the configured trainer composition during Free Fly, SURF, and town-FLY departure/arrival. Pokémon-lead mode with `TRAINER TRAIL` off now shows the traveling lead Pokémon by itself in both classic and voxel rendering; enabling `TRAINER TRAIL`, or using trainer-front mode, keeps the trainer riding the lead Pokémon.
+
 ## 2.1.4 - 2026-08-08
 
 ### Changed
