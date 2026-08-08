@@ -106,7 +106,8 @@ local function flyBadgeOk(game)
 end
 
 local function surfAllowed(game, ow)
-  if not ownedHM(game, "SURF") then return false end
+  local knower = firstHealthyKnower(game, "SURF")
+  if not ownedHM(game, "SURF") and not knower then return false end
   local badgeOk = type(shared.travelBadgeAllowed) == "function"
     and shared.travelBadgeAllowed(game, "SURF")
     or (not enabled("fly_badge_checks", true) or hasBadge(game, "SURF"))
@@ -216,8 +217,8 @@ mod.exports.freeFly = {
     -- learn the move naturally. A dual FLY/SURF user follows in the style of
     -- the current trip rather than always preferring its airborne capability.
     local canFly = hasType(game, mon, "FLYING") or knowsMove(mon, "FLY")
-    local canSurf = ownedHM(game, "SURF")
-      and (hasType(game, mon, "WATER") or knowsMove(mon, "SURF"))
+    local canSurf = knowsMove(mon, "SURF")
+      or (ownedHM(game, "SURF") and hasType(game, mon, "WATER"))
     local canHover = hasType(game, mon, "PSYCHIC")
       or hasType(game, mon, "GHOST")
 
@@ -386,7 +387,7 @@ mod.events:on("game.ready", function(event)
   end
 
   local function surfMount(ow)
-    if not (ow and ow.player and ow.player.surfing and ownedHM(game, "SURF")) then
+    if not (ow and ow.player and ow.player.surfing) then
       return nil
     end
     -- Retain the engine's normal surf sprite for HM-device fallback when no

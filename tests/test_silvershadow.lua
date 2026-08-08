@@ -202,8 +202,49 @@ for _, entry in ipairs(shared.sortedStartItems()) do
   if entry.id == "hm" then hmFactory = entry.factory end
 end
 check(type(hmFactory) == "function", "HM Start-menu factory is registered")
-check(hmFactory(hackedFlyGame) ~= nil,
-  "A party FLY user exposes Start -> HM without owning HM02")
+eq(hmFactory(hackedFlyGame), nil,
+  "Edited FLY does not create the owned-HM Start menu")
+local ownedFlyGame = {
+  save = { inventory = { HM02 = 1 }, party = {} },
+  data = { items = {
+    HM02 = { machine = { kind = "HM", move = "FLY" } },
+  } },
+}
+check(hmFactory(ownedFlyGame) ~= nil,
+  "An actual HM02 item creates the Start HM menu")
+
+local hackedSurfMon = {
+  species = "WEEDLE", hp = 10, moves = { { id = "SURF" } },
+}
+local hackedSurfGame = {
+  save = { inventory = {}, party = { hackedSurfMon } },
+  data = {
+    field = { outsideTilesets = { "OVERWORLD" } },
+    items = {}, text = {},
+    pokemon = { WEEDLE = { types = { "BUG", "POISON" }, tmhm = {} } },
+  },
+}
+local hackedSurfMenu = fieldMovesDecorator(
+  hackedSurfGame, {}, hackedSurfMon, hackedFlyContext)
+eq(#hackedSurfMenu, 1, "Edited SURF exposes one field action without HM03")
+eq(hackedSurfMenu[1].label, "SURF",
+  "Edited SURF appears in Weedle's Pokemon submenu")
+check(mod.exports.fieldCapable(hackedSurfGame, "SURF"),
+  "Edited SURF grants actual field capability without HM03")
+check(mod.exports.freeFly.surfAllowed(hackedSurfGame),
+  "Edited SURF permits water travel when badge checks are off")
+local editedSurfActivated = false
+local hackedSurfOverworld = {
+  player = { facingCell = function() return 4, 5 end },
+  useSurfFieldMove = function() return "ok" end,
+  trySurf = function(_, fx, fy)
+    editedSurfActivated = fx == 4 and fy == 5
+  end,
+}
+check(mod.exports.useEditedSurf(hackedSurfGame, hackedSurfOverworld),
+  "Edited SURF executes without HM03 when badge checks are off")
+check(editedSurfActivated,
+  "Edited SURF reaches the engine's real surf mount path")
 
 saved.fly_badge_checks = true
 eq(#freeFlyDecorator(hackedFlyGame, {}, hackedFlyMon, hackedFlyContext), 0,
@@ -292,15 +333,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.1.2",
+  tag_name = "v2.1.3",
   assets = { {
-    name = "silvershadow-mods-v2.1.2.zip",
+    name = "silvershadow-mods-v2.1.3.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.1.2", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.1.2.zip",
+eq(release.version, "2.1.3", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.1.3.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.
@@ -404,6 +445,8 @@ local moveGame = { data = { pokemon = {
     effect = "COUNTER_EFFECT", pp = 20 },
   SOLARBEAM = { name = "SolarBeam", type = "GRASS", power = 120,
     effect = "CHARGE_EFFECT", pp = 10 },
+  WATERFALL = { name = "Waterfall", type = "WATER", power = 80,
+    effect = "NO_ADDITIONAL_EFFECT", pp = 15 },
   THUNDER_WAVE = { name = "Thunder Wave", type = "ELECTRIC", power = 0,
     effect = "PARALYZE_EFFECT", pp = 20 },
   METRONOME = { name = "Metronome", type = "NORMAL", power = 0,
@@ -415,7 +458,7 @@ eq(table.concat(learned, ","), "TACKLE,STRING_SHOT,HARDEN,CONFUSION",
   "Butterfree remembers legitimate evolutionary-line moves")
 local allMoves = mod.exports.allMoves
 local covered, missing, total = allMoves.coverage(moveGame)
-check(covered and missing == nil and total == 7,
+check(covered and missing == nil and total == 8,
   "All Moves assigns every registered move exactly once")
 local physicalNormal = allMoves.rows(moveGame, "physical", "NORMAL")
 eq(table.concat((function()
@@ -425,6 +468,9 @@ end)(), ","), "EXPLOSION,HYPER_BEAM,TACKLE",
   "Caterpie can browse every alphabetical Normal attack")
 eq(select(1, allMoves.branch(moveGame.data.moves.COUNTER)), "physical",
   "zero-power Counter remains a damaging Physical move")
+local specialWater = allMoves.rows(moveGame, "special", "WATER")
+eq(specialWater[1].id, "WATERFALL",
+  "Gen I Waterfall remains available as a regular Water battle move")
 local section, group = allMoves.branch(moveGame.data.moves.THUNDER_WAVE)
 eq(section .. "/" .. group, "status/major",
   "Thunder Wave is grouped under Major Status")
@@ -559,8 +605,8 @@ eq(classify(travelGame, editedDualTraveler, "surf", true), "surf",
 travelGame.save.inventory.HM03 = nil
 eq(classify(travelGame, { species = "SQUIRTLE" }), nil,
   "Water followers wait until Surf is obtained")
-eq(classify(travelGame, editedSurfer, "surf", true), nil,
-  "Edited swimmers also wait until HM03 is obtained")
+eq(classify(travelGame, editedSurfer, "surf", true), "surf",
+  "A Pokemon that actually knows SURF remains an edited swimmer without HM03")
 check(mod.exports.freeFly.eligible(travelGame, {
   species = "PIDGEY", hp = 10, moves = { { id = "FLY" } },
 }), "A healthy FLY knower offers FREEFLY")

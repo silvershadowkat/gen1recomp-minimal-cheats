@@ -475,8 +475,8 @@ return function(hostMod, assetMod)
     end
 
     local canFly = hasType(game, mon, "FLYING") or knowsMove(mon, "FLY")
-    local canSurf = ownsSurf(game)
-      and (hasType(game, mon, "WATER") or knowsMove(mon, "SURF"))
+    local canSurf = knowsMove(mon, "SURF")
+      or (ownsSurf(game) and hasType(game, mon, "WATER"))
     local canHover = hasType(game, mon, "PSYCHIC")
       or hasType(game, mon, "GHOST")
     if travelMode == "surf" then

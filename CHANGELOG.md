@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.3 - 2026-08-08
+
+### Fixed
+
+- Make SURF taught through the Move Editor a complete field capability without requiring HM03: it appears in that Pokémon's submenu, works through the contextual water interaction, supplies the player's surf mount, and qualifies the Pokémon as a swimming follower. `BADGE CHECK` still controls the Soul Badge requirement.
+- Keep Start -> HM strictly inventory-based. Teaching FLY through the Move Editor no longer creates the HM menu; an actual HM02 or HM05 item is required for that menu, while edited FLY remains available from the Pokémon submenu.
+
+### Clarified
+
+- Waterfall is present in Gen I as a regular battle move, not an HM or overworld field move, so All Moves may teach it without creating a field action.
+
 ## 2.1.2 - 2026-08-08
 
 ### Fixed

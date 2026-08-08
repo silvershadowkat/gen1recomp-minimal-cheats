@@ -55,6 +55,10 @@ local function ownedHM(game, moveId)
   return nil
 end
 
+local function fieldCapable(game, moveId)
+  return ownedHM(game, moveId) ~= nil or partyKnower(game, moveId) ~= nil
+end
+
 local function hasBadge(game, moveId)
   local badge = HM_BADGES[moveId]
   if not badge then return true end
@@ -146,7 +150,7 @@ local function dismountSurf(game, ow)
 end
 
 local function trySurf(game, ow, shared)
-  if not ownedHM(game, "SURF") then return false end
+  if not fieldCapable(game, "SURF") then return false end
   local reason = ow:useSurfFieldMove()
   if reason == "no_water" or reason == "forced_bike" or reason == "current" then
     return false
@@ -193,9 +197,9 @@ local function tryWater(game, ow, shared)
   end
 
   local rod = bestRod(game)
-  local surfOwned = ownedHM(game, "SURF") ~= nil
+  local surfCapable = fieldCapable(game, "SURF")
   local surfBadgeOk = travelBadgeAllowed(game, shared, "SURF")
-  local surfAvailable = surfOwned and surfBadgeOk and reason == "ok"
+  local surfAvailable = surfCapable and surfBadgeOk and reason == "ok"
   local fishAvailable = rod ~= nil
 
   if surfAvailable and fishAvailable then
@@ -209,7 +213,7 @@ local function tryWater(game, ow, shared)
   end
   if surfAvailable then return trySurf(game, ow, shared) end
   if fishAvailable then ow:goFishing(rod); return true end
-  if surfOwned and not surfBadgeOk then
+  if surfCapable and not surfBadgeOk then
     pushText(game, badgeRequired(game))
     return true
   end
@@ -297,6 +301,45 @@ local function flyFromMenu(game, mod, shared, reopen)
   })
 end
 
+local function closeToOverworld(game)
+  while game.stack:top() and not game.stack:top().isOverworld do
+    game.stack:pop()
+  end
+end
+
+local function surfFromParty(game, shared)
+  if not travelBadgeAllowed(game, shared, "SURF") then
+    pushText(game, badgeRequired(game))
+    return
+  end
+  local ow = game.overworld
+  if not (ow and ow.player and ow.map) then
+    pushText(game, "SURF can't be used\nright now.")
+    return
+  end
+  local reason = ow:useSurfFieldMove()
+  if reason == "ok" then
+    local fx, fy = ow.player:facingCell()
+    ow:trySurf(fx, fy, function() closeToOverworld(game) end)
+    return
+  end
+  if reason == "dismount" then
+    closeToOverworld(game)
+    dismountSurf(game, ow)
+    return
+  end
+  if reason == "no_place" then
+    pushText(game, noLandingText(game), function() closeToOverworld(game) end)
+    return
+  end
+  local key = ({
+    forced_bike = "_CyclingIsFunText",
+    current = "_CurrentTooFastText",
+  })[reason] or "_NoSurfingHereText"
+  local text = game.data.text[key] or "No SURFing here!"
+  pushText(game, text)
+end
+
 local function openHMMenu(game, mod, shared)
   local Menu = require("src.ui.Menu")
   local Screens = require("src.ui.Screens")
@@ -312,7 +355,7 @@ local function openHMMenu(game, mod, shared)
       onSelect = function() flashFromMenu(game, reopen) end,
     }
   end
-  if ownedHM(game, "FLY") or partyKnower(game, "FLY") then
+  if ownedHM(game, "FLY") then
     items[#items + 1] = {
       label = "FLY",
       onSelect = function() flyFromMenu(game, mod, shared, reopen) end,
@@ -384,6 +427,10 @@ return function(mod, shared)
       if FIELD_HMS[moveId] and ownedHM(game, moveId) then
         return fieldHelper(game)
       end
+      if (moveId == "FLY" or moveId == "SURF")
+          and travelBadgeAllowed(game, shared, moveId) then
+        return partyKnower(game, moveId)
+      end
       return nil
     end
 
@@ -396,53 +443,70 @@ return function(mod, shared)
     if type(out) ~= "table" or (ctx and ctx.battle) then return out end
     out = removeVanillaHMRows(out)
     local ow = ctx and ctx.overworld
-    if not knowsMove(mon, "FLY") or not ow or not isOutside(game, ow)
-        or not flyBadgeAllowed(game, shared) then return out end
+    if not ow then return out end
 
-    local flyItem = {
-      label = "FLY",
-      onSelect = function(_, selectedGame)
-        -- Recheck here as well as at row construction so changing BADGE CHECK
-        -- while this submenu is open cannot bypass the new setting.
-        if not flyBadgeAllowed(selectedGame, shared) then
-          pushText(selectedGame, badgeRequired(selectedGame))
+    local function insertAfter(label, item)
+      for i, existing in ipairs(out) do
+        if tostring(existing.label or ""):upper() == label then
+          table.insert(out, i + 1, item)
           return
         end
-        local current = selectedGame.overworld
-        if not isOutside(selectedGame, current) then
-          pushText(selectedGame, "FLY can't be used\nhere.")
-          return
-        end
-        while selectedGame.stack:top()
-            and not selectedGame.stack:top().isOverworld do
-          selectedGame.stack:pop()
-        end
-        mod.ui.push(selectedGame, "TownMap", {
-          fly = true,
-          onFly = function(mapId)
-            if current and current.flyTo then current:flyTo(mapId) end
-          end,
-        })
-      end,
-    }
-    local inserted = false
-    for i, item in ipairs(out) do
-      if tostring(item.label or ""):upper() == "FREEFLY" then
-        table.insert(out, i + 1, flyItem)
-        inserted = true
-        break
       end
+      table.insert(out, 1, item)
     end
-    if not inserted then table.insert(out, 1, flyItem) end
+
+    if knowsMove(mon, "FLY") and isOutside(game, ow)
+        and flyBadgeAllowed(game, shared) then
+      insertAfter("FREEFLY", {
+        label = "FLY",
+        onSelect = function(_, selectedGame)
+          -- Recheck here as well as at row construction so changing BADGE
+          -- CHECK while this submenu is open cannot bypass the setting.
+          if not flyBadgeAllowed(selectedGame, shared) then
+            pushText(selectedGame, badgeRequired(selectedGame))
+            return
+          end
+          local current = selectedGame.overworld
+          if not isOutside(selectedGame, current) then
+            pushText(selectedGame, "FLY can't be used\nhere.")
+            return
+          end
+          closeToOverworld(selectedGame)
+          mod.ui.push(selectedGame, "TownMap", {
+            fly = true,
+            onFly = function(mapId)
+              if current and current.flyTo then current:flyTo(mapId) end
+            end,
+          })
+        end,
+      })
+    end
+
+    if knowsMove(mon, "SURF")
+        and travelBadgeAllowed(game, shared, "SURF") then
+      local surfItem = {
+        label = "SURF",
+        onSelect = function(_, selectedGame)
+          surfFromParty(selectedGame, shared)
+        end,
+      }
+      local hasFly = false
+      for _, existing in ipairs(out) do
+        if tostring(existing.label or ""):upper() == "FLY" then
+          hasFly = true
+          break
+        end
+      end
+      insertAfter(hasFly and "FLY" or "FREEFLY", surfItem)
+    end
     return out
   end)
 
   -- FLASH and FLY share one Start-menu HM submenu. The parent entry appears
-  -- when the corresponding HM item is in the Bag or a party member actually
-  -- knows FLY; badge and map restrictions are checked on selection.
+  -- only when a corresponding HM item is actually in the Bag. Move Editor
+  -- knowledge remains available from the Pokemon's own field-action submenu.
   shared.registerStartItem("hm", 20, function(game)
-    if not (ownedHM(game, "FLASH") or ownedHM(game, "FLY")
-        or partyKnower(game, "FLY")) then return nil end
+    if not (ownedHM(game, "FLASH") or ownedHM(game, "FLY")) then return nil end
     return {
       label = "HM",
       onSelect = function()
@@ -456,6 +520,10 @@ return function(mod, shared)
   end
   mod.exports.hasBadge = hasBadge
   mod.exports.bestRod = bestRod
+  mod.exports.fieldCapable = fieldCapable
+  mod.exports.useEditedSurf = function(game, ow)
+    return trySurf(game, ow, shared)
+  end
   shared.travelBadgeAllowed = function(game, moveId)
     return travelBadgeAllowed(game, shared, moveId)
   end
