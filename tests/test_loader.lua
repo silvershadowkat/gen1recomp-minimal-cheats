@@ -75,6 +75,21 @@ if withPokePC then
   assert(type(run.loader.exports.minimal_cheats.setControlMode) == "function"
     and type(run.loader.exports.minimal_cheats.setFollowerCount) == "function",
     "SilverShadow follower control/trailer API was not installed")
+  local appearanceDirty =
+    run.loader.exports.minimal_cheats._trailerCompositionDirty
+  assert(type(appearanceDirty) == "function",
+    "SilverShadow follower appearance refresh check was not installed")
+  local evolved = { species = "KAKUNA", dvs = {} }
+  assert(appearanceDirty({ {
+    pokepcTrailerKind = "mon", pokepcMon = evolved,
+    pokepcSpecies = "WEEDLE", pokepcShiny = false,
+  } }, { { kind = "mon", mon = evolved } }),
+    "an in-place evolution must invalidate the old follower sprite")
+  assert(not appearanceDirty({ {
+    pokepcTrailerKind = "mon", pokepcMon = evolved,
+    pokepcSpecies = "KAKUNA", pokepcShiny = false,
+  } }, { { kind = "mon", mon = evolved } }),
+    "an unchanged follower appearance must keep its existing NPC")
 else
   assert(not run.loader.exports.minimal_cheats.followersIntegration.available(),
     "Followers integration should stay hidden when PokePC is absent")

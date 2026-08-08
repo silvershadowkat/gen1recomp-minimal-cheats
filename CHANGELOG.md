@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Refresh PokéPC follower sprites automatically when a followed Pokémon evolves or its shiny appearance changes.
+
 ## 2.0.5 - 2026-08-07
 
 ### Changed

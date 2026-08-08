@@ -603,6 +603,10 @@ return function(hostMod, assetMod)
     else
       local species = mon and mon.species or "CHARMANDER"
       local shiny = mon and Stats.isShiny and Stats.isShiny(mon.dvs)
+      -- Keep an immutable snapshot of the appearance this renderer was built
+      -- for. Evolution mutates pokepcMon in place, so comparing against that
+      -- live table cannot detect that the sprite still shows the old species.
+      npc.pokepcSpecies = species
       npc.pokepcShiny = shiny and true or false
       npc.sprite = SpriteRenderer.new({
         id = "SPRITE_POKEPC_MON",
@@ -687,8 +691,12 @@ return function(hostMod, assetMod)
       if not t or t.pokepcTrailerKind ~= spec.kind then return true end
       if spec.kind == "mon" then
         local sp = spec.mon and spec.mon.species
-        local cur = t.pokepcMon and t.pokepcMon.species
-        if sp ~= cur then return true end
+        local shiny = spec.mon and Stats.isShiny
+          and Stats.isShiny(spec.mon.dvs) and true or false
+        if sp ~= t.pokepcSpecies
+            or shiny ~= (t.pokepcShiny and true or false) then
+          return true
+        end
       end
     end
     return false
@@ -1225,6 +1233,7 @@ return function(hostMod, assetMod)
     syncTrailers = syncTrailers,
     alignSaveFromOptions = alignSaveFromOptions,
     invalidateFollowerImageCache = invalidateFollowerImageCache,
+    _trailerCompositionDirty = compositionDirty,
     syncAll = function(game, ow)
       invalidateFollowerImageCache()
       if ow then pcall(removeTrailers, ow) end
