@@ -26,6 +26,20 @@ local function hasCount(value)
   return value == true
 end
 
+local function knowsMove(mon, moveId)
+  for _, move in ipairs((mon and mon.moves) or {}) do
+    if (type(move) == "table" and move.id or move) == moveId then return true end
+  end
+  return false
+end
+
+local function partyKnower(game, moveId)
+  for _, mon in ipairs(game and game.save and game.save.party or {}) do
+    if knowsMove(mon, moveId) then return mon end
+  end
+  return nil
+end
+
 local function ownedHM(game, moveId)
   local inventory = game and game.save and game.save.inventory or {}
   local items = game and game.data and game.data.items or {}
@@ -254,9 +268,13 @@ local function flashFromMenu(game, reopen)
     end)
 end
 
-local function flyFromMenu(game, mod, reopen)
+local function flyBadgeAllowed(game, shared)
+  return not shared.bool("fly_badge_checks", true) or hasBadge(game, "FLY")
+end
+
+local function flyFromMenu(game, mod, shared, reopen)
   local ow = game.overworld
-  if not hasBadge(game, "FLY") then
+  if not flyBadgeAllowed(game, shared) then
     pushText(game, badgeRequired(game), reopen)
     return
   end
@@ -274,12 +292,12 @@ local function flyFromMenu(game, mod, reopen)
   })
 end
 
-local function openHMMenu(game, mod)
+local function openHMMenu(game, mod, shared)
   local Menu = require("src.ui.Menu")
   local Screens = require("src.ui.Screens")
 
   local function reopen()
-    openHMMenu(game, mod)
+    openHMMenu(game, mod, shared)
   end
 
   local items = {}
@@ -289,10 +307,10 @@ local function openHMMenu(game, mod)
       onSelect = function() flashFromMenu(game, reopen) end,
     }
   end
-  if ownedHM(game, "FLY") then
+  if ownedHM(game, "FLY") or partyKnower(game, "FLY") then
     items[#items + 1] = {
       label = "FLY",
-      onSelect = function() flyFromMenu(game, mod, reopen) end,
+      onSelect = function() flyFromMenu(game, mod, shared, reopen) end,
     }
   end
 
@@ -371,18 +389,59 @@ return function(mod, shared)
   -- moves remain teachable and usable in battle.
   shared.registerPartyDecorator("field_moves", 10, function(game, out, mon, ctx)
     if type(out) ~= "table" or (ctx and ctx.battle) then return out end
-    return removeVanillaHMRows(out)
+    out = removeVanillaHMRows(out)
+    local ow = ctx and ctx.overworld
+    if not knowsMove(mon, "FLY") or not ow or not isOutside(game, ow)
+        or not flyBadgeAllowed(game, shared) then return out end
+
+    local flyItem = {
+      label = "FLY",
+      onSelect = function(_, selectedGame)
+        -- Recheck here as well as at row construction so changing BADGE CHECK
+        -- while this submenu is open cannot bypass the new setting.
+        if not flyBadgeAllowed(selectedGame, shared) then
+          pushText(selectedGame, badgeRequired(selectedGame))
+          return
+        end
+        local current = selectedGame.overworld
+        if not isOutside(selectedGame, current) then
+          pushText(selectedGame, "FLY can't be used\nhere.")
+          return
+        end
+        while selectedGame.stack:top()
+            and not selectedGame.stack:top().isOverworld do
+          selectedGame.stack:pop()
+        end
+        mod.ui.push(selectedGame, "TownMap", {
+          fly = true,
+          onFly = function(mapId)
+            if current and current.flyTo then current:flyTo(mapId) end
+          end,
+        })
+      end,
+    }
+    local inserted = false
+    for i, item in ipairs(out) do
+      if tostring(item.label or ""):upper() == "FREEFLY" then
+        table.insert(out, i + 1, flyItem)
+        inserted = true
+        break
+      end
+    end
+    if not inserted then table.insert(out, 1, flyItem) end
+    return out
   end)
 
   -- FLASH and FLY share one Start-menu HM submenu. The parent entry appears
-  -- as soon as either corresponding HM item is in the Bag; badge and map
-  -- restrictions are explained when the player selects the action.
+  -- when the corresponding HM item is in the Bag or a party member actually
+  -- knows FLY; badge and map restrictions are checked on selection.
   shared.registerStartItem("hm", 20, function(game)
-    if not (ownedHM(game, "FLASH") or ownedHM(game, "FLY")) then return nil end
+    if not (ownedHM(game, "FLASH") or ownedHM(game, "FLY")
+        or partyKnower(game, "FLY")) then return nil end
     return {
       label = "HM",
       onSelect = function()
-        openHMMenu(game, mod)
+        openHMMenu(game, mod, shared)
       end,
     }
   end)

@@ -174,6 +174,10 @@ end
 
 local function startFlight(game, mon)
   if flying() or shared.online() then return false end
+  -- Revalidate at execution time.  A party submenu can remain open while the
+  -- option changes, so the row that was legal when drawn must not become a
+  -- stale badge-check bypass.
+  if not eligibleFlyer(game, mon) or not flyBadgeOk(game) then return false end
   local ow = currentOverworld()
   if not (ow and ow.player and ow.map and ow.map.def) then return false end
   if ow.player.onBike or not skyAbove(game, ow.map.def) then return false end
@@ -204,7 +208,10 @@ mod.exports.freeFly = {
   eligible = eligibleFlyer,
   surfAllowed = surfAllowed,
   classify = function(game, mon)
-    if hasType(game, mon, "FLYING") then return "air" end
+    -- Move Editor users deliberately grant field capability beyond a
+    -- species' natural TM/HM/type data.  Knowing FLY is therefore just as
+    -- authoritative as being a native Flying type for travel formations.
+    if hasType(game, mon, "FLYING") or knowsMove(mon, "FLY") then return "air" end
     if hasType(game, mon, "PSYCHIC") or hasType(game, mon, "GHOST") then
       return "hover"
     end

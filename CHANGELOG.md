@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1 - 2026-08-07
+
+### Fixed
+
+- Treat FLY taught through the Move Editor as a real field capability even for species that cannot naturally learn it. The Pokémon submenu and Start -> HM now expose ordinary town FLY without requiring HM02, while still honoring the optional badge check and outdoor-map requirement.
+- Classify any Pokémon that actually knows FLY as an airborne travel follower, so edited move sets behave consistently during Free Fly and SURF formations.
+- Revalidate Free Fly eligibility and the badge setting at takeoff, preventing a party menu left open across an option change from bypassing the current safety setting.
+
 ## 2.1.0 - 2026-08-07
 
 ### Added

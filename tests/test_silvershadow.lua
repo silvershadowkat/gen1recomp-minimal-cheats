@@ -149,13 +149,17 @@ mode, count = plan("pokemon", false, 6)
 eq(count, 5, "Six Pokemon remains distinct from five")
 local followerDecorator = false
 local freeFlyDecorator
+local fieldMovesDecorator
 for _, entry in ipairs(shared.sortedPartyDecorators()) do
   if entry.id == "followers" then followerDecorator = true end
   if entry.id == "free_fly" then freeFlyDecorator = entry.decorate end
+  if entry.id == "field_moves" then fieldMovesDecorator = entry.decorate end
 end
 check(not followerDecorator, "PokéPC exclusively owns the FOLLOWING party row")
 check(type(freeFlyDecorator) == "function",
   "SilverShadow owns one coordinated FREEFLY party decorator")
+check(type(fieldMovesDecorator) == "function",
+  "SilverShadow owns one coordinated field-move party decorator")
 saved.fly_badge_checks = false
 local flyMon = { species = "PIDGEY", hp = 10, moves = { { id = "FLY" } } }
 local flyMenu = freeFlyDecorator({
@@ -166,6 +170,47 @@ local flyMenu = freeFlyDecorator({
   map = { def = { tileset = "OVERWORLD" } }, player = {},
 } })
 eq(flyMenu[1].label, "FREEFLY", "Eligible outdoor FLY user gets FREEFLY")
+
+-- A move added through ALL MOVES is authoritative even when the species
+-- could never naturally learn it. The same hacked FLY must unlock Free Fly,
+-- ordinary town Fly, the Start -> HM parent, and airborne follower travel.
+local hackedFlyMon = {
+  species = "WEEDLE", hp = 10, moves = { { id = "FLY" } },
+}
+local hackedFlyGame = {
+  save = { inventory = {}, party = { hackedFlyMon } },
+  data = {
+    field = { outsideTilesets = { "OVERWORLD" } },
+    items = {}, text = {},
+    pokemon = { WEEDLE = { types = { "BUG", "POISON" }, tmhm = {} } },
+  },
+}
+local hackedFlyContext = { overworld = {
+  map = { def = { tileset = "OVERWORLD" } }, player = {},
+} }
+local hackedFlyMenu = freeFlyDecorator(
+  hackedFlyGame, {}, hackedFlyMon, hackedFlyContext)
+hackedFlyMenu = fieldMovesDecorator(
+  hackedFlyGame, hackedFlyMenu, hackedFlyMon, hackedFlyContext)
+eq(#hackedFlyMenu, 2, "Hacked FLY exposes exactly two distinct travel actions")
+eq(hackedFlyMenu[1].label, "FREEFLY", "Hacked FLY retains Free Fly")
+eq(hackedFlyMenu[2].label, "FLY", "Hacked FLY exposes ordinary town Fly")
+eq(mod.exports.freeFly.classify(hackedFlyGame, hackedFlyMon), "air",
+  "Hacked FLY makes a ground species an airborne travel follower")
+local hmFactory
+for _, entry in ipairs(shared.sortedStartItems()) do
+  if entry.id == "hm" then hmFactory = entry.factory end
+end
+check(type(hmFactory) == "function", "HM Start-menu factory is registered")
+check(hmFactory(hackedFlyGame) ~= nil,
+  "A party FLY user exposes Start -> HM without owning HM02")
+
+saved.fly_badge_checks = true
+eq(#freeFlyDecorator(hackedFlyGame, {}, hackedFlyMon, hackedFlyContext), 0,
+  "Badge check hides hacked Free Fly before the Thunder Badge")
+eq(#fieldMovesDecorator(hackedFlyGame, {}, hackedFlyMon, hackedFlyContext), 0,
+  "Badge check hides hacked town Fly before the Thunder Badge")
+saved.fly_badge_checks = false
 
 local followerMenu = screens.SilverShadowFollowers.new({})
 local followerCountRow
@@ -247,15 +292,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.1.0",
+  tag_name = "v2.1.1",
   assets = { {
-    name = "silvershadow-mods-v2.1.0.zip",
+    name = "silvershadow-mods-v2.1.1.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.1.0", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.1.0.zip",
+eq(release.version, "2.1.1", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.1.1.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.
