@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.4 - 2026-08-08
+
+### Changed
+
+- Keep ground-only Pokémon visible during Free Fly over walkable land, where they run along the trainer's exact trail using normal follower animation. They temporarily return to their Poké Balls over water, fences, buildings, map seams, and other non-walkable cells, then respawn safely when the trainer reaches walkable ground again.
+- Ground followers do not perform independent route-finding. Flying through a safe opening gives them a valid trail to follow; flying directly across blocked terrain uses the hide-and-respawn fallback instead.
+
 ## 2.1.3 - 2026-08-08
 
 ### Fixed

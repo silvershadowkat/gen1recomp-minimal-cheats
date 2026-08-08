@@ -466,12 +466,12 @@ return function(hostMod, assetMod)
       and (a == b or monIdentityKey(a) == monIdentityKey(b))
   end
 
-  local function travelStyle(game, mon, travelMode, overWater)
+  local function travelStyle(game, mon, travelMode, overWater, overLand)
     -- Use SilverShadow's public classifier when available so edited move
     -- knowledge and dual-capability priority cannot drift from Free Fly.
     local freeFly = mod.exports and mod.exports.freeFly
     if freeFly and type(freeFly.classify) == "function" then
-      return freeFly.classify(game, mon, travelMode, overWater)
+      return freeFly.classify(game, mon, travelMode, overWater, overLand)
     end
 
     local canFly = hasType(game, mon, "FLYING") or knowsMove(mon, "FLY")
@@ -487,6 +487,7 @@ return function(hostMod, assetMod)
       if canFly then return "air" end
       if canHover then return "hover" end
       if overWater and canSurf then return "surf" end
+      if overLand then return "ground" end
     end
     return nil
   end
@@ -498,6 +499,9 @@ return function(hostMod, assetMod)
     if not (flying or surfing) then return want end
     local overWater = surfing or (ow.map and player
       and ow.map:isWaterCell(player.cellX, player.cellY))
+    local overLand = flying and ow.map and player
+      and ow.map:inBounds(player.cellX, player.cellY)
+      and ow.map:isWalkableCell(player.cellX, player.cellY)
     local mount = flying and player.silverTravelMount or player.silverSurfMount
     local out = {}
     for _, spec in ipairs(want) do
@@ -505,7 +509,7 @@ return function(hostMod, assetMod)
       -- itself is likewise never duplicated in the trailing pack.
       if spec.kind == "mon" and not sameMon(spec.mon, mount) then
         local style = travelStyle(game, spec.mon,
-          flying and "fly" or "surf", overWater)
+          flying and "fly" or "surf", overWater, overLand)
         if style then
           out[#out + 1] = { kind = "mon", mon = spec.mon,
             travelStyle = style }
@@ -825,6 +829,20 @@ return function(hostMod, assetMod)
     return goals
   end
 
+  local function seedFormationBehind(ow, anchor, facing, want, traveling)
+    local goals = seedTrailBehind(ow, anchor, facing, #want, traveling)
+    if traveling then
+      for i, spec in ipairs(want) do
+        if spec.travelStyle == "ground" then
+          local bx, by = walkableBehind(ow, anchor.cellX or 0,
+            anchor.cellY or 0, facing, i)
+          goals[i] = { x = bx, y = by }
+        end
+      end
+    end
+    return goals
+  end
+
   local function trailersAliveInWorld(ow, trailers)
     if not trailers or #trailers == 0 then return true end
     local ents = ow.entities or {}
@@ -912,7 +930,7 @@ return function(hostMod, assetMod)
     if dirty then
       removeTrailers(ow)
       trailers = {}
-      local goals = seedTrailBehind(ow, anchor, facing, #want, traveling)
+      local goals = seedFormationBehind(ow, anchor, facing, want, traveling)
       for i, spec in ipairs(want) do
         local cell = goals[i] or { x = anchor.cellX, y = anchor.cellY }
         local bx, by = cell.x, cell.y
@@ -936,7 +954,7 @@ return function(hostMod, assetMod)
       ow.pokepcTrailHead = { x = anchor.cellX, y = anchor.cellY }
     elseif mapEnter and #trailers > 0 then
       -- Same pack composition: keep NPCs, soft-reset behind the trail anchor.
-      local goals = seedTrailBehind(ow, anchor, facing, #trailers, traveling)
+      local goals = seedFormationBehind(ow, anchor, facing, want, traveling)
       for i, npc in ipairs(trailers) do
         local g = goals[i] or { x = anchor.cellX, y = anchor.cellY }
         placeTrailerAt(npc, g.x, g.y, facing)
@@ -1421,6 +1439,7 @@ return function(hostMod, assetMod)
     freeFlyAware = true,
     _trailerCompositionDirty = compositionDirty,
     _travelFormation = travelFormation,
+    _seedTravelFormation = seedFormationBehind,
     syncAll = function(game, ow)
       invalidateFollowerImageCache()
       if ow then pcall(removeTrailers, ow) end

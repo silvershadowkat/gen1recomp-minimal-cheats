@@ -50,7 +50,7 @@ end
 assert(run.loader.mods.minimal_cheats, "SilverShadow was not discovered")
 assert(#run.errors == 0, "loader errors: " .. table.concat(run.errors, "; "))
 assert(run.loader.exports.minimal_cheats, "SilverShadow exports were not published")
-assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.1.3",
+assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.1.4",
   "wrong runtime export version")
 assert(run.loader.mods.minimal_cheats.manifest.github
     == "silvershadowkat/gen1recomp-minimal-cheats",
@@ -109,6 +109,10 @@ if withPokePC then
   local travelFormation = run.loader.exports.minimal_cheats._travelFormation
   assert(type(travelFormation) == "function",
     "travel-aware follower formation planner was not installed")
+  local seedTravelFormation =
+    run.loader.exports.minimal_cheats._seedTravelFormation
+  assert(type(seedTravelFormation) == "function",
+    "safe travel follower spawn planner was not installed")
   local mount = { species = "PIDGEY", level = 10, hp = 20 }
   local grounded = { species = "CATERPIE", level = 5, hp = 10 }
   local flyer = { species = "BUTTERFREE", level = 12, hp = 25 }
@@ -128,9 +132,14 @@ if withPokePC then
       WEEDLE = { types = { "BUG", "POISON" } },
     },
   } }
+  local travelTerrain = "water"
   local travelOw = { player = { freeFlying = true,
-      silverTravelMount = mount },
-    map = { isWaterCell = function() return true end } }
+      silverTravelMount = mount, cellX = 5, cellY = 5 },
+    map = {
+      inBounds = function() return true end,
+      isWaterCell = function() return travelTerrain == "water" end,
+      isWalkableCell = function() return travelTerrain == "land" end,
+    } }
   local candidates = {
     { kind = "mon", mon = mount }, { kind = "mon", mon = grounded },
     { kind = "mon", mon = flyer }, { kind = "mon", mon = swimmer },
@@ -157,6 +166,39 @@ if withPokePC then
       and formation[2].travelStyle == "air",
     "edited SURF swims while a dual user flies during Free Fly")
 
+  travelTerrain = "land"
+  formation = travelFormation(travelGame, travelOw, {
+    { kind = "mon", mon = grounded },
+    { kind = "mon", mon = flyer },
+    { kind = "mon", mon = swimmer },
+  }, "pack")
+  assert(#formation == 3
+      and formation[1].travelStyle == "ground"
+      and formation[2].travelStyle == "air"
+      and formation[3].travelStyle == "ground",
+    "non-flyers run normally while Free Fly remains over walkable land")
+
+  travelTerrain = "blocked"
+  formation = travelFormation(travelGame, travelOw, {
+    { kind = "mon", mon = grounded },
+    { kind = "mon", mon = flyer },
+    { kind = "mon", mon = swimmer },
+  }, "pack")
+  assert(#formation == 1 and formation[1].mon == flyer
+      and formation[1].travelStyle == "air",
+    "ground followers hide over fences, buildings, and blocked terrain")
+
+  local safeSpawnOw = { map = {
+    inBounds = function() return true end,
+    isWalkableCell = function(_, x, y) return x == 5 and y == 5 end,
+  } }
+  local safeGoals = seedTravelFormation(safeSpawnOw,
+    { cellX = 5, cellY = 5 }, "up",
+    { { kind = "mon", mon = grounded, travelStyle = "ground" } }, true)
+  assert(safeGoals[1].x == 5 and safeGoals[1].y == 5,
+    "returning ground followers respawn on a walkable cell")
+
+  travelTerrain = "water"
   travelOw.player.freeFlying = nil
   travelOw.player.surfing = true
   travelOw.player.silverTravelMount = nil

@@ -333,15 +333,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.1.3",
+  tag_name = "v2.1.4",
   assets = { {
-    name = "silvershadow-mods-v2.1.3.zip",
+    name = "silvershadow-mods-v2.1.4.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.1.3", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.1.3.zip",
+eq(release.version, "2.1.4", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.1.4.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.
@@ -590,6 +590,10 @@ eq(classify(travelGame, { species = "SQUIRTLE" }), "surf",
   "Water followers may swim after Surf is obtained")
 eq(classify(travelGame, { species = "CATERPIE" }), nil,
   "Ground-only followers return to their Poke Balls")
+eq(classify(travelGame, { species = "CATERPIE" }, "fly", false, true),
+  "ground", "Ground-only followers run while Free Fly is over walkable land")
+eq(classify(travelGame, { species = "CATERPIE" }, "fly", false, false),
+  nil, "Ground-only followers hide over blocked terrain")
 local editedSurfer = {
   species = "WEEDLE", moves = { { id = "SURF" } },
 }

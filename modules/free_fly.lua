@@ -212,7 +212,7 @@ mod.exports.freeFly = {
   mount = function() return flying() and state.mountMon or nil end,
   eligible = eligibleFlyer,
   surfAllowed = surfAllowed,
-  classify = function(game, mon, travelMode, overWater)
+  classify = function(game, mon, travelMode, overWater, overLand)
     -- Move Editor knowledge is authoritative even when the species could not
     -- learn the move naturally. A dual FLY/SURF user follows in the style of
     -- the current trip rather than always preferring its airborne capability.
@@ -232,6 +232,7 @@ mod.exports.freeFly = {
       if canFly then return "air" end
       if canHover then return "hover" end
       if overWater and canSurf then return "surf" end
+      if overLand then return "ground" end
       return nil
     end
 
