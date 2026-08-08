@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.2 - 2026-08-08
+
+### Fixed
+
+- Treat Pokémon taught SURF through the Move Editor as swimmers in travel-aware follower formations after HM03 has been obtained, even when their species cannot naturally learn SURF.
+- Make dual FLY/SURF followers use the capability matching the current trip: they fly during Free Fly and swim during SURF. FLY-only companions can still fly alongside the trainer while surfing.
+- Apply `BADGE CHECK` consistently to SURF: ON requires the Soul Badge and OFF permits using owned HM03 without it, matching Free Fly and town FLY behavior.
+
 ## 2.1.1 - 2026-08-07
 
 ### Fixed

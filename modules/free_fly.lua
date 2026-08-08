@@ -99,14 +99,18 @@ local function eligibleFlyer(game, mon)
 end
 
 local function flyBadgeOk(game)
+  if type(shared.travelBadgeAllowed) == "function" then
+    return shared.travelBadgeAllowed(game, "FLY")
+  end
   return not enabled("fly_badge_checks", true) or hasBadge(game, "FLY")
 end
 
 local function surfAllowed(game, ow)
   if not ownedHM(game, "SURF") then return false end
-  if enabled("fly_badge_checks", true) and not hasBadge(game, "SURF") then
-    return false
-  end
+  local badgeOk = type(shared.travelBadgeAllowed) == "function"
+    and shared.travelBadgeAllowed(game, "SURF")
+    or (not enabled("fly_badge_checks", true) or hasBadge(game, "SURF"))
+  if not badgeOk then return false end
   if ow and type(ow.partyKnows) == "function" then
     local ok, mon = pcall(ow.partyKnows, ow, "SURF")
     if ok and mon then return true end
@@ -207,18 +211,34 @@ mod.exports.freeFly = {
   mount = function() return flying() and state.mountMon or nil end,
   eligible = eligibleFlyer,
   surfAllowed = surfAllowed,
-  classify = function(game, mon)
-    -- Move Editor users deliberately grant field capability beyond a
-    -- species' natural TM/HM/type data.  Knowing FLY is therefore just as
-    -- authoritative as being a native Flying type for travel formations.
-    if hasType(game, mon, "FLYING") or knowsMove(mon, "FLY") then return "air" end
-    if hasType(game, mon, "PSYCHIC") or hasType(game, mon, "GHOST") then
-      return "hover"
+  classify = function(game, mon, travelMode, overWater)
+    -- Move Editor knowledge is authoritative even when the species could not
+    -- learn the move naturally. A dual FLY/SURF user follows in the style of
+    -- the current trip rather than always preferring its airborne capability.
+    local canFly = hasType(game, mon, "FLYING") or knowsMove(mon, "FLY")
+    local canSurf = ownedHM(game, "SURF")
+      and (hasType(game, mon, "WATER") or knowsMove(mon, "SURF"))
+    local canHover = hasType(game, mon, "PSYCHIC")
+      or hasType(game, mon, "GHOST")
+
+    if travelMode == "surf" then
+      if canSurf then return "surf" end
+      if canFly then return "air" end
+      if canHover then return "hover" end
+      return nil
     end
-    if ownedHM(game, "SURF")
-        and (hasType(game, mon, "WATER") or knowsMove(mon, "SURF")) then
-      return "surf"
+    if travelMode == "fly" then
+      if canFly then return "air" end
+      if canHover then return "hover" end
+      if overWater and canSurf then return "surf" end
+      return nil
     end
+
+    -- Backward-compatible generic classification for companion callers that
+    -- do not yet pass the current travel mode.
+    if canFly then return "air" end
+    if canHover then return "hover" end
+    if canSurf then return "surf" end
     return nil
   end,
 }

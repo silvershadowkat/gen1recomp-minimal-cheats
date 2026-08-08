@@ -50,7 +50,7 @@ end
 assert(run.loader.mods.minimal_cheats, "SilverShadow was not discovered")
 assert(#run.errors == 0, "loader errors: " .. table.concat(run.errors, "; "))
 assert(run.loader.exports.minimal_cheats, "SilverShadow exports were not published")
-assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.1.1",
+assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.1.2",
   "wrong runtime export version")
 assert(run.loader.mods.minimal_cheats.manifest.github
     == "silvershadowkat/gen1recomp-minimal-cheats",
@@ -113,6 +113,10 @@ if withPokePC then
   local grounded = { species = "CATERPIE", level = 5, hp = 10 }
   local flyer = { species = "BUTTERFREE", level = 12, hp = 25 }
   local swimmer = { species = "SQUIRTLE", level = 12, hp = 25 }
+  local editedSwimmer = { species = "WEEDLE", level = 12, hp = 25,
+    moves = { { id = "SURF" } } }
+  local editedDual = { species = "WEEDLE", level = 12, hp = 25,
+    moves = { { id = "FLY" }, { id = "SURF" } } }
   local travelGame = { save = { pokepcFollowerCount = 2,
       inventory = { HM03 = 1 } }, data = {
     items = { HM03 = { machine = { kind = "HM", move = "SURF" } } },
@@ -121,6 +125,7 @@ if withPokePC then
       CATERPIE = { types = { "BUG" } },
       BUTTERFREE = { types = { "BUG", "FLYING" } },
       SQUIRTLE = { types = { "WATER" } },
+      WEEDLE = { types = { "BUG", "POISON" } },
     },
   } }
   local travelOw = { player = { freeFlying = true,
@@ -139,6 +144,33 @@ if withPokePC then
       and formation[2].mon == swimmer
       and formation[2].travelStyle == "surf",
     "travel formation skips ground-only members and fills later safe slots")
+
+  travelGame.save.pokepcFollowerCount = 3
+  formation = travelFormation(travelGame, travelOw, {
+    { kind = "mon", mon = editedSwimmer },
+    { kind = "mon", mon = editedDual },
+  }, "pack")
+  assert(#formation == 2
+      and formation[1].mon == editedSwimmer
+      and formation[1].travelStyle == "surf"
+      and formation[2].mon == editedDual
+      and formation[2].travelStyle == "air",
+    "edited SURF swims while a dual user flies during Free Fly")
+
+  travelOw.player.freeFlying = nil
+  travelOw.player.surfing = true
+  travelOw.player.silverTravelMount = nil
+  travelOw.player.silverSurfMount = swimmer
+  formation = travelFormation(travelGame, travelOw, {
+    { kind = "mon", mon = editedSwimmer },
+    { kind = "mon", mon = editedDual },
+    { kind = "mon", mon = flyer },
+  }, "pack")
+  assert(#formation == 3
+      and formation[1].travelStyle == "surf"
+      and formation[2].travelStyle == "surf"
+      and formation[3].travelStyle == "air",
+    "edited and dual SURF users swim while FLY-only users fly during Surf")
 else
   assert(not run.loader.exports.minimal_cheats.followersIntegration.available(),
     "Followers integration should stay hidden when PokePC is absent")

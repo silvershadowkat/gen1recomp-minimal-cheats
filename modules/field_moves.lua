@@ -62,6 +62,10 @@ local function hasBadge(game, moveId)
   return hasCount(inventory[badge])
 end
 
+local function travelBadgeAllowed(game, shared, moveId)
+  return not shared.bool("fly_badge_checks", true) or hasBadge(game, moveId)
+end
+
 local function fieldHelper(game)
   local party = game and game.save and game.save.party or {}
   for _, mon in ipairs(party) do
@@ -141,13 +145,13 @@ local function dismountSurf(game, ow)
   end))
 end
 
-local function trySurf(game, ow)
+local function trySurf(game, ow, shared)
   if not ownedHM(game, "SURF") then return false end
   local reason = ow:useSurfFieldMove()
   if reason == "no_water" or reason == "forced_bike" or reason == "current" then
     return false
   end
-  if not hasBadge(game, "SURF") then
+  if not travelBadgeAllowed(game, shared, "SURF") then
     pushText(game, badgeRequired(game))
     return true
   end
@@ -176,11 +180,11 @@ end
 -- A owns the water interaction. It resolves available actions first, skips
 -- needless prompts for a single action, and delegates fishing to goFishing so
 -- the engine's real rod/map tables and bite rules remain authoritative.
-local function tryWater(game, ow)
+local function tryWater(game, ow, shared)
   if not (ow and ow.player and ow.map) then return false end
   local reason = ow:useSurfFieldMove()
   if reason == "dismount" or reason == "no_place" then
-    return trySurf(game, ow)
+    return trySurf(game, ow, shared)
   end
 
   local fx, fy = ow.player:facingCell()
@@ -190,35 +194,36 @@ local function tryWater(game, ow)
 
   local rod = bestRod(game)
   local surfOwned = ownedHM(game, "SURF") ~= nil
-  local surfAvailable = surfOwned and hasBadge(game, "SURF") and reason == "ok"
+  local surfBadgeOk = travelBadgeAllowed(game, shared, "SURF")
+  local surfAvailable = surfOwned and surfBadgeOk and reason == "ok"
   local fishAvailable = rod ~= nil
 
   if surfAvailable and fishAvailable then
     local Menu = require("src.ui.Menu")
     game.stack:push(Menu.new(game, {
-      { label = "SURF", onSelect = function() trySurf(game, ow) end },
+      { label = "SURF", onSelect = function() trySurf(game, ow, shared) end },
       { label = "FISH", onSelect = function() ow:goFishing(rod) end },
       { label = "CANCEL" },
     }, { tx = 11, ty = 8, tw = 9, th = 8 }))
     return true
   end
-  if surfAvailable then return trySurf(game, ow) end
+  if surfAvailable then return trySurf(game, ow, shared) end
   if fishAvailable then ow:goFishing(rod); return true end
-  if surfOwned and not hasBadge(game, "SURF") then
+  if surfOwned and not surfBadgeOk then
     pushText(game, badgeRequired(game))
     return true
   end
   return false
 end
 
-local function contextualInteract(game, baseInteract, ow, ...)
+local function contextualInteract(game, baseInteract, ow, shared, ...)
   if not (ow and ow.player and ow.map) then return baseInteract(ow, ...) end
 
   -- Exact contextual targets win before vanilla interaction. A pushable
   -- boulder is an NPC object, so STRENGTH must run before talkTo.
   if tryStrength(game, ow) then return end
   if tryCut(game, ow) then return end
-  if tryWater(game, ow) then return end
+  if tryWater(game, ow, shared) then return end
 
   -- NPCs, signs, hidden items, scripts and bookshelves keep vanilla priority.
   return baseInteract(ow, ...)
@@ -269,7 +274,7 @@ local function flashFromMenu(game, reopen)
 end
 
 local function flyBadgeAllowed(game, shared)
-  return not shared.bool("fly_badge_checks", true) or hasBadge(game, "FLY")
+  return travelBadgeAllowed(game, shared, "FLY")
 end
 
 local function flyFromMenu(game, mod, shared, reopen)
@@ -373,7 +378,7 @@ return function(mod, shared)
     end
 
     dispatch.interact = function(ow, ...)
-      return contextualInteract(game, dispatch.baseInteract, ow, ...)
+      return contextualInteract(game, dispatch.baseInteract, ow, shared, ...)
     end
     dispatch.partyKnows = function(_, moveId)
       if FIELD_HMS[moveId] and ownedHM(game, moveId) then
@@ -451,4 +456,7 @@ return function(mod, shared)
   end
   mod.exports.hasBadge = hasBadge
   mod.exports.bestRod = bestRod
+  shared.travelBadgeAllowed = function(game, moveId)
+    return travelBadgeAllowed(game, shared, moveId)
+  end
 end

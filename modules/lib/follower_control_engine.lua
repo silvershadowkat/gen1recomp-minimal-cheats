@@ -466,14 +466,27 @@ return function(hostMod, assetMod)
       and (a == b or monIdentityKey(a) == monIdentityKey(b))
   end
 
-  local function travelStyle(game, mon, overWater)
-    if hasType(game, mon, "FLYING") then return "air" end
-    if hasType(game, mon, "PSYCHIC") or hasType(game, mon, "GHOST") then
-      return "hover"
+  local function travelStyle(game, mon, travelMode, overWater)
+    -- Use SilverShadow's public classifier when available so edited move
+    -- knowledge and dual-capability priority cannot drift from Free Fly.
+    local freeFly = mod.exports and mod.exports.freeFly
+    if freeFly and type(freeFly.classify) == "function" then
+      return freeFly.classify(game, mon, travelMode, overWater)
     end
-    if overWater and ownsSurf(game)
-        and (hasType(game, mon, "WATER") or knowsMove(mon, "SURF")) then
-      return "surf"
+
+    local canFly = hasType(game, mon, "FLYING") or knowsMove(mon, "FLY")
+    local canSurf = ownsSurf(game)
+      and (hasType(game, mon, "WATER") or knowsMove(mon, "SURF"))
+    local canHover = hasType(game, mon, "PSYCHIC")
+      or hasType(game, mon, "GHOST")
+    if travelMode == "surf" then
+      if canSurf then return "surf" end
+      if canFly then return "air" end
+      if canHover then return "hover" end
+    else
+      if canFly then return "air" end
+      if canHover then return "hover" end
+      if overWater and canSurf then return "surf" end
     end
     return nil
   end
@@ -491,7 +504,8 @@ return function(hostMod, assetMod)
       -- The trainer is rendered seated on the main travel Pokemon. The mount
       -- itself is likewise never duplicated in the trailing pack.
       if spec.kind == "mon" and not sameMon(spec.mon, mount) then
-        local style = travelStyle(game, spec.mon, overWater)
+        local style = travelStyle(game, spec.mon,
+          flying and "fly" or "surf", overWater)
         if style then
           out[#out + 1] = { kind = "mon", mon = spec.mon,
             travelStyle = style }

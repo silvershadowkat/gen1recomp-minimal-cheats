@@ -292,15 +292,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.1.1",
+  tag_name = "v2.1.2",
   assets = { {
-    name = "silvershadow-mods-v2.1.1.zip",
+    name = "silvershadow-mods-v2.1.2.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.1.1", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.1.1.zip",
+eq(release.version, "2.1.2", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.1.2.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.
@@ -508,6 +508,16 @@ check(mod.exports.hasBadge(hmGame, "SURF"), "HM badge requirement is retained")
 eq(mod.exports.bestRod(hmGame), "SUPER_ROD", "fishing chooses best owned rod")
 hmGame.save.inventory.SOULBADGE = nil
 check(not mod.exports.hasBadge(hmGame, "SURF"), "missing badge blocks field move")
+saved.fly_badge_checks = true
+check(not shared.travelBadgeAllowed(hmGame, "SURF"),
+  "BADGE CHECK ON requires the Soul Badge for Surf")
+check(not mod.exports.freeFly.surfAllowed(hmGame),
+  "Free Fly water landing shares the enabled Surf badge check")
+saved.fly_badge_checks = false
+check(shared.travelBadgeAllowed(hmGame, "SURF"),
+  "BADGE CHECK OFF permits Surf with owned HM03")
+check(mod.exports.freeFly.surfAllowed(hmGame),
+  "Free Fly water landing shares the disabled Surf badge check")
 
 -- Free Fly uses the shared movement multiplier and classifies only safe
 -- temporary travel companions. Surf-capable followers stay locked until HM03
@@ -520,6 +530,7 @@ local travelGame = { save = { inventory = { HM03 = 1 } }, data = {
     GASTLY = { types = { "GHOST", "POISON" } },
     SQUIRTLE = { types = { "WATER" } },
     CATERPIE = { types = { "BUG" } },
+    WEEDLE = { types = { "BUG", "POISON" } },
   },
 } }
 local classify = mod.exports.freeFly.classify
@@ -533,9 +544,23 @@ eq(classify(travelGame, { species = "SQUIRTLE" }), "surf",
   "Water followers may swim after Surf is obtained")
 eq(classify(travelGame, { species = "CATERPIE" }), nil,
   "Ground-only followers return to their Poke Balls")
+local editedSurfer = {
+  species = "WEEDLE", moves = { { id = "SURF" } },
+}
+local editedDualTraveler = {
+  species = "WEEDLE", moves = { { id = "FLY" }, { id = "SURF" } },
+}
+eq(classify(travelGame, editedSurfer, "surf", true), "surf",
+  "Edited SURF makes Weedle a swimming follower")
+eq(classify(travelGame, editedDualTraveler, "fly", true), "air",
+  "A dual edited traveler flies during Free Fly")
+eq(classify(travelGame, editedDualTraveler, "surf", true), "surf",
+  "A dual edited traveler swims during Surf")
 travelGame.save.inventory.HM03 = nil
 eq(classify(travelGame, { species = "SQUIRTLE" }), nil,
   "Water followers wait until Surf is obtained")
+eq(classify(travelGame, editedSurfer, "surf", true), nil,
+  "Edited swimmers also wait until HM03 is obtained")
 check(mod.exports.freeFly.eligible(travelGame, {
   species = "PIDGEY", hp = 10, moves = { { id = "FLY" } },
 }), "A healthy FLY knower offers FREEFLY")
