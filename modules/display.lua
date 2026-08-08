@@ -46,7 +46,10 @@ end
 local function caughtPosition(wide, valueWidth, status)
   valueWidth = math.max(0, tonumber(valueWidth) or 0)
   local valueX = wide and (status and 88 or 96) or 40
-  return valueX + valueWidth + 5, 12
+  local radius = wide and 3 or 4
+  local panelRight = wide and 128 or 88
+  local x = math.min(valueX + valueWidth + 8, panelRight - radius)
+  return x, 12, radius
 end
 
 local function shouldDrawCaught(battle)
@@ -68,13 +71,28 @@ local function drawCaughtGlyph(battle)
   local Font = require("src.render.Font")
   local wide = battle.wideLayout and battle:wideLayout()
   local value, status = caughtValue(battle)
-  local x, y = caughtPosition(wide, Font.width(value), status)
+  local x, y, radius = caughtPosition(wide, Font.width(value), status)
   local g = love.graphics
   g.setShader()
+  -- Compact pixel-style Poke Ball. Color and a filled silhouette keep it
+  -- visually separate from the adjacent level digits at phone scale.
   g.setColor(0, 0, 0, 1)
-  g.circle("line", x, y, 3)
-  g.line(x - 3, y, x + 3, y)
-  g.circle("fill", x, y, 1)
+  g.circle("fill", x, y, radius)
+  g.setColor(1, 1, 1, 1)
+  g.circle("fill", x, y, radius - 1)
+  g.setColor(0.88, 0.08, 0.08, 1)
+  local inner = radius - 1
+  g.polygon("fill",
+    x - inner, y,
+    x - inner + 1, y - inner + 1,
+    x, y - inner,
+    x + inner - 1, y - inner + 1,
+    x + inner, y)
+  g.setColor(0, 0, 0, 1)
+  g.line(x - inner, y, x + inner, y)
+  g.circle("fill", x, y, math.max(1, radius - 2))
+  g.setColor(1, 1, 1, 1)
+  g.circle("fill", x, y, 0.75)
 end
 
 local function drawCaught(battle)

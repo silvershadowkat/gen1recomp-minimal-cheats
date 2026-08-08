@@ -6,7 +6,7 @@ Pokémon Blue is the primary target. Red and Yellow use the engine's live game d
 
 ## Install
 
-Download `silvershadow-mods-v2.0.3.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
+Download `silvershadow-mods-v2.0.4.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
 
 The installable archive has `manifest.json`, `main.lua`, and `modules/` at its root; it contains no ROM data or Pokémon artwork.
 
@@ -48,7 +48,7 @@ Normal Options contains one `SILVERSHADOW  OPEN` row. Its grouped menus contain:
 - **Link/PvP:** gameplay cheats become inert during link battles and sessions. `affects_link` remains false by design.
 - **Dramatic Shape Voxel Mod:** SilverShadow's outer free-roam handler owns controller/touch SELECT for DexNav; keyboard `3`, Dramatic Shape's Options rows, battle SELECT, and menu SELECT remain untouched.
 - **SilverShadow Touchpad:** virtual SELECT uses the same normal input path as controller SELECT and therefore reaches DexNav.
-- **PokéPC Followers:** optional. In Trainer mode, `FOLLOWERS` is the number of Pokémon behind the trainer. In Pokémon mode, it is the total number of Pokémon on screen including the lead; `TRAINER TRAIL` independently puts the trainer behind them. PokéPC remains the owner of all walker sprites.
+- **PokéPC Followers:** optional. In Trainer mode, `FOLLOWERS` is the number of Pokémon behind the trainer; choose `0` to switch to Trainer mode with the trainer alone. In Pokémon mode, it is the total number of Pokémon on screen including the lead; `TRAINER TRAIL` independently puts the trainer behind them. PokéPC remains the owner of all walker sprites.
 
 Followers EX is not required. No PokéPC, Dramatic Shape, Stadium, follower, or ROM-derived assets are bundled. Overworld Encounters and Followers EX wild-spawn/roaming systems are intentionally not included.
 

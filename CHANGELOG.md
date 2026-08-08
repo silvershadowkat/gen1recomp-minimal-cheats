@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.4 - 2026-08-07
+
+### Fixed
+
+- Replaced the monochrome caught circle, which could read like an extra level digit, with a red/white/black pixel-style Poké Ball.
+- Increased the spacing after the level in classic and staged battle HUDs.
+- Added adaptive size and right-edge clamping so the icon remains fully inside both classic and wide HUD panels against level 100 Pokémon.
+- Added `FOLLOWERS 0` as a true trainer-only composition, including suppression of Yellow's stock Pikachu follower.
+
 ## 2.0.3 - 2026-08-07
 
 ### Fixed

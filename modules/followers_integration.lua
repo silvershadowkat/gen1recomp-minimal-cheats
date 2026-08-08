@@ -52,13 +52,14 @@ local function sync(game)
 end
 
 local function followerPlan(who, trainerFollows, count)
-  count = math.max(1, math.min(6, math.floor(tonumber(count) or 1)))
+  count = math.max(0, math.min(6, math.floor(tonumber(count) or 1)))
   if who == "trainer" then
     return "follow", count
   end
 
   -- In Pokemon-front mode the visible count includes the controlled lead.
   -- PokePC's engine count is trailers only, so translate 1..6 to 0..5.
+  count = math.max(1, count)
   local trailers = count - 1
   if trainerFollows then return "lead_trainer", trailers end
   if trailers > 0 then return "pack", trailers end
@@ -81,19 +82,34 @@ local function applyMode(game)
 end
 
 shared.applyFollowerMode = function(game, value)
+  if value == "pokemon"
+      and tonumber(shared.get("follower_count", 1)) == 0 then
+    shared.set("follower_count", 1)
+  end
   shared.set("follower_mode", value)
   return applyMode(game)
 end
 
 shared.applyTrainerFollows = function(game, value)
   shared.set("trainer_follows", value and true or false)
-  if value then shared.set("follower_mode", "pokemon") end
+  if value then
+    shared.set("follower_mode", "pokemon")
+    if tonumber(shared.get("follower_count", 1)) == 0 then
+      shared.set("follower_count", 1)
+    end
+  end
   return applyMode(game)
 end
 
 shared.applyFollowerCount = function(game, value)
-  local count = math.max(1, math.min(6, math.floor(tonumber(value) or 1)))
+  local count = math.max(0, math.min(6, math.floor(tonumber(value) or 1)))
   shared.set("follower_count", count)
+  if count == 0 then
+    -- A Pokemon-front composition necessarily has one Pokemon: the player.
+    -- Selecting zero therefore switches to the only true zero-Pokemon mode.
+    shared.set("follower_mode", "trainer")
+    shared.set("trainer_follows", false)
+  end
   applyMode(game)
   return true
 end

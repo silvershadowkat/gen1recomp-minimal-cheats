@@ -134,6 +134,10 @@ return function(hostMod, assetMod)
     return m == "pokemon" or m == "lead_trainer" or m == "pack"
   end
 
+  local function isTrainerSolo(game)
+    return controlMode(game) == "follow" and followerCount(game) <= 0
+  end
+
   -- ------- Leader (party or box)
   local function clearLeader(game)
     if game and game.save then
@@ -912,6 +916,9 @@ return function(hostMod, assetMod)
 
   local function newShouldSpawn(game, ow)
     local mode = controlMode(game)
+    -- FOLLOWERS 0 is an explicit trainer-only composition, including Yellow;
+    -- do not let the stock Pikachu follower fill the otherwise empty trail.
+    if isTrainerSolo(game) then return false end
     -- Player-is-pokemon modes must NEVER keep the stock follower — even when
     -- pack size is 0 (save often has pack + pokepcFollowerCount=0). Otherwise
     -- the leader sprite and stock SPRITE_PIKACHU show as the same mon.
@@ -937,7 +944,9 @@ return function(hostMod, assetMod)
   local origFollowerUpdate = PikachuFollower.update
   PikachuFollower.update = function(game, ow, ...)
     local result = origFollowerUpdate(game, ow, ...)
-    if isPokemonFront(game) then pcall(removeStockPikachu, ow) end
+    if isPokemonFront(game) or isTrainerSolo(game) then
+      pcall(removeStockPikachu, ow)
+    end
     pcall(forceYellowStockPikachuArt, ow)
     pcall(syncPlayerControlVisual, game, ow)
     if pendingMapTrailerSync then
@@ -955,7 +964,8 @@ return function(hostMod, assetMod)
     local mode = controlMode(game)
     -- Only strip stock when player-is-pokemon / pack owns the field.
     -- Yellow follow keeps stock PikachuFollower for talk.
-    if mode == "pokemon" or mode == "lead_trainer" or mode == "pack" then
+    if mode == "pokemon" or mode == "lead_trainer" or mode == "pack"
+        or isTrainerSolo(game) then
       pcall(removeStockPikachu, ow)
     else
       pcall(forceYellowStockPikachuArt, ow)
@@ -1237,7 +1247,11 @@ return function(hostMod, assetMod)
         ow.player._pokepcControlSpecies = nil -- force pokemon sprite rebuild
       end
       pcall(syncPlayerControlVisual, game, ow, true)
-      pcall(forceYellowStockPikachuArt, ow)
+      if ow and (isPokemonFront(game) or isTrainerSolo(game)) then
+        pcall(removeStockPikachu, ow)
+      else
+        pcall(forceYellowStockPikachuArt, ow)
+      end
       pcall(syncTrailers, game, ow, { mapEnter = true, catchUp = true })
     end,
     _followersExControlEngine = true,

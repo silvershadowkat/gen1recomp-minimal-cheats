@@ -66,7 +66,12 @@ local function makeMenu(game, title, items, footer)
       elseif item.kind == "action" then
         item.run(game, list)
       end
-      row.right = rightValue(item)
+      -- Some follower choices intentionally update another row as well (for
+      -- example, zero followers switches to Trainer mode). Refresh every
+      -- visible value so the menu always reflects the applied composition.
+      for _, visibleRow in ipairs(list.items) do
+        visibleRow.right = rightValue(visibleRow._silver)
+      end
     end,
   })
   return list
@@ -156,7 +161,7 @@ local menuDefs = {
         function(game, value) if shared.applyFollowerMode then shared.applyFollowerMode(game, value) end end),
       toggle("TRAINER TRAIL", "trainer_follows", false,
         function(game, value) if shared.applyTrainerFollows then shared.applyTrainerFollows(game, value) end end),
-      choice("FOLLOWERS", "follower_count", { 1, 2, 3, 4, 5, 6 }, 1,
+      choice("FOLLOWERS", "follower_count", { 0, 1, 2, 3, 4, 5, 6 }, 1,
         tostring, function(game, value)
           if shared.applyFollowerCount then shared.applyFollowerCount(game, value) end
         end),

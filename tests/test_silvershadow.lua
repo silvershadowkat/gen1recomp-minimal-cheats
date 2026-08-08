@@ -109,12 +109,18 @@ check(displayLabels["CAUGHT ICON"] and displayLabels["MAP BANNERS"],
 -- The menu count means Pokemon on screen when a Pokemon leads, but means
 -- Pokemon behind the trainer when the trainer leads.
 local plan = mod.exports.followersIntegration.followerPlan
-local mode, count = plan("trainer", false, 1)
+local mode, count = plan("trainer", false, 0)
+eq(mode, "follow", "Zero followers keeps the trainer in front")
+eq(count, 0, "Zero followers produces a trainer-only composition")
+mode, count = plan("trainer", false, 1)
 eq(mode, "follow", "Trainer-front uses follow mode")
 eq(count, 1, "Trainer-front count remains trailer count")
 mode, count = plan("pokemon", false, 1)
 eq(mode, "pokemon", "One Pokemon alone uses Pokemon mode")
 eq(count, 0, "Lead Pokemon is included in displayed count")
+mode, count = plan("pokemon", false, 0)
+eq(mode, "pokemon", "Pokemon-front mode always retains its controlled lead")
+eq(count, 0, "Pokemon-front zero normalizes to one visible lead")
 mode, count = plan("pokemon", true, 1)
 eq(mode, "lead_trainer", "Trainer can trail one lead Pokemon")
 eq(count, 0, "Trainer trail does not force a second Pokemon")
@@ -128,13 +134,31 @@ for _, entry in ipairs(shared.sortedPartyDecorators()) do
 end
 check(not followerDecorator, "PokéPC exclusively owns the FOLLOWING party row")
 
-local caughtX, caughtY = mod.exports.display.caughtPosition(false, 8, false)
-eq(caughtX, 53, "Level 3 caught icon follows the level")
+local followerMenu = screens.SilverShadowFollowers.new({})
+local followerCountRow
+for _, row in ipairs(followerMenu.items) do
+  if row.label == "FOLLOWERS" then followerCountRow = row._silver end
+end
+check(followerCountRow ~= nil, "Followers menu exposes a count row")
+eq(followerCountRow.values[1], 0, "Followers menu includes trainer-only zero")
+shared.set("follower_mode", "pokemon")
+shared.set("trainer_follows", true)
+shared.applyFollowerCount({}, 0)
+eq(saved.follower_mode, "trainer", "Zero followers switches to Trainer mode")
+eq(saved.trainer_follows, false, "Zero followers disables Trainer Trail")
+shared.applyFollowerMode({}, "pokemon")
+eq(saved.follower_count, 1, "Pokemon mode restores its required visible lead")
+
+local caughtX, caughtY, caughtRadius =
+  mod.exports.display.caughtPosition(false, 8, false)
+eq(caughtX, 56, "Level 3 caught icon has space after the level")
 eq(caughtY, 12, "Caught icon shares the level row")
+eq(caughtRadius, 4, "Classic HUD uses a readable Poke Ball radius")
 caughtX = mod.exports.display.caughtPosition(false, 24, false)
-eq(caughtX, 69, "Level 100 caught icon remains inside the classic HUD")
-caughtX = mod.exports.display.caughtPosition(true, 24, false)
+eq(caughtX, 72, "Level 100 caught icon remains inside the classic HUD")
+caughtX, _, caughtRadius = mod.exports.display.caughtPosition(true, 24, false)
 eq(caughtX, 125, "Level 100 caught icon remains inside the wide HUD")
+eq(caughtRadius, 3, "Wide HUD shrinks the Poke Ball to stay contained")
 
 -- A staged battle embeds the icon in Dramatic Shape's HUD texture. The
 -- regular centered overlay then suppresses its duplicate.
@@ -143,7 +167,7 @@ local previousFont = package.loaded["src.render.Font"]
 package.loaded["src.render.Font"] = {
   width = function(value) return #tostring(value) * 8 end,
 }
-local activeCanvas, embeddedCircles = nil, 0
+local activeCanvas, embeddedBalls, redDraws, whiteDraws = nil, 0, 0, 0
 love = { graphics = {
   getCanvas = function() return activeCanvas end,
   setCanvas = function(value) activeCanvas = value end,
@@ -152,14 +176,22 @@ love = { graphics = {
   getShader = function() return nil end,
   setShader = function() end,
   getColor = function() return 1, 1, 1, 1 end,
-  setColor = function() end,
+  setColor = function(r, green, blue)
+    if r == 0.88 and green == 0.08 and blue == 0.08 then
+      redDraws = redDraws + 1
+    elseif r == 1 and green == 1 and blue == 1
+        and activeCanvas == fakeHudLayer then
+      whiteDraws = whiteDraws + 1
+    end
+  end,
   circle = function(mode, x)
-    if activeCanvas == fakeHudLayer and mode == "line" then
-      embeddedCircles = embeddedCircles + 1
-      eq(x, 69, "Dramatic Shape embeds the icon after level 100")
+    if activeCanvas == fakeHudLayer and mode == "fill" then
+      embeddedBalls = embeddedBalls + 1
+      eq(x, 72, "Dramatic Shape embeds the Poke Ball after level 100")
     end
   end,
   line = function() end,
+  polygon = function() end,
   push = function() end,
   pop = function() end,
 } }
@@ -172,7 +204,9 @@ emit("battle.started", { battle = stagedBattle, species = "RATTATA" })
 check(fakeOverworldBattle.snapHUDs(stagedBattle, {}),
   "Dramatic Shape HUD snapshot succeeds")
 hooks["battle.overlay"](function() end, stagedBattle)
-eq(embeddedCircles, 1, "Centered overlay does not duplicate embedded icon")
+eq(embeddedBalls, 4, "Centered overlay does not duplicate embedded Poke Ball")
+eq(redDraws, 1, "Caught Poke Ball has one red upper-half pass")
+check(whiteDraws >= 2, "Caught Poke Ball has a white lower half and button")
 love = previousLove
 package.loaded["src.render.Font"] = previousFont
 
@@ -180,15 +214,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.0.3",
+  tag_name = "v2.0.4",
   assets = { {
-    name = "silvershadow-mods-v2.0.3.zip",
+    name = "silvershadow-mods-v2.0.4.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.0.3", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.0.3.zip",
+eq(release.version, "2.0.4", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.0.4.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.
