@@ -62,7 +62,6 @@ install("modules/moves_manager.lua", mod, shared)
 install("modules/dexnav.lua", mod, shared)
 install("modules/field_moves.lua", mod, shared)
 install("modules/followers_integration.lua", mod, shared)
-install("modules/title_exit.lua", mod, shared)
 local fakeHudLayer = {}
 local fakeOverworldBattle = {}
 fakeOverworldBattle.hudTexture = function() return fakeHudLayer end
@@ -106,32 +105,6 @@ check(healingLabels["MAP HEAL"] and healingLabels["BATTLE HEAL"]
 local displayLabels = labels("SilverShadowDisplay")
 check(displayLabels["CAUGHT ICON"] and displayLabels["MAP BANNERS"],
   "Display labels fit beside values")
-
--- EXIT GAME writes the one-shot launcher marker and uses the host's Android-
--- safe restart bridge instead of falling through to a normal process quit.
-local previousLoveForExit = love
-local previousHostShell = package.loaded["src.core.HostShell"]
-local launcherMarker, exitRestarted, originalExit = nil, false, false
-love = { filesystem = { write = function(path, value)
-  launcherMarker = { path = path, value = value }
-  return true
-end } }
-package.loaded["src.core.HostShell"] = { restart = function()
-  exitRestarted = true
-end }
-local titleItems = hooks["ui.title_menu.items"](
-  function(_, items) return items end, {}, {
-    { label = "NEW GAME" },
-    { label = "EXIT GAME", onSelect = function() originalExit = true end },
-  })
-titleItems[2].onSelect()
-eq(launcherMarker.path, "relaunch_to_launcher.txt",
-  "Title exit writes the launcher restart marker")
-eq(launcherMarker.value, "1", "Title exit writes a one-shot marker")
-check(exitRestarted, "Title exit invokes the host restart bridge")
-check(not originalExit, "Title exit does not quit to the operating system")
-package.loaded["src.core.HostShell"] = previousHostShell
-love = previousLoveForExit
 
 -- The menu count means Pokemon on screen when a Pokemon leads, but means
 -- Pokemon behind the trainer when the trainer leads.
