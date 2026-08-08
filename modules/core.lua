@@ -13,6 +13,7 @@ M.EXP_MULTIPLIERS = { 1, 2, 4, 8, 10 }
 M.DAMAGE_MODES = { 1, 2, 4, 8, 10, "OHKO" }
 M.MOVE_MULTIPLIERS = { 1.5, 2, 3, 4 }
 M.BOOST_STATES = { "OFF", "ON", "HOLD" }
+M.FLY_HEIGHTS = { "LOW", "MED", "HIGH" }
 
 function M.get(key, default)
   local value = mod.save:get(key, default)

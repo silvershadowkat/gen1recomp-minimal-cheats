@@ -21,7 +21,15 @@ local mod = {
     end,
     set = function(_, key, value) saved[key] = value end,
   },
-  hooks = { wrap = function(_, name, fn) hooks[name] = fn end },
+  hooks = { wrap = function(_, name, fn)
+    local inner = hooks[name]
+    if not inner then hooks[name] = fn; return end
+    hooks[name] = function(next, ...)
+      return fn(function(...)
+        return inner(next, ...)
+      end, ...)
+    end
+  end },
   events = { on = function(_, name, fn)
     events[name] = events[name] or {}; events[name][#events[name] + 1] = fn
   end },
@@ -62,6 +70,7 @@ install("modules/moves_manager.lua", mod, shared)
 install("modules/dexnav.lua", mod, shared)
 install("modules/field_moves.lua", mod, shared)
 install("modules/followers_integration.lua", mod, shared)
+install("modules/free_fly.lua", mod, shared)
 local fakeHudLayer = {}
 local fakeOverworldBattle = {}
 fakeOverworldBattle.hudTexture = function() return fakeHudLayer end
@@ -105,6 +114,11 @@ check(healingLabels["MAP HEAL"] and healingLabels["BATTLE HEAL"]
 local displayLabels = labels("SilverShadowDisplay")
 check(displayLabels["CAUGHT ICON"] and displayLabels["MAP BANNERS"],
   "Display labels fit beside values")
+local movementLabels = labels("SilverShadowMovement")
+for _, label in ipairs({ "FLY BOOST", "FLY HEIGHT", "TRAINER SIGHT",
+                         "STORY GATES", "BADGE CHECK" }) do
+  check(movementLabels[label], "Movement exposes " .. label)
+end
 
 -- The menu count means Pokemon on screen when a Pokemon leads, but means
 -- Pokemon behind the trainer when the trainer leads.
@@ -129,10 +143,24 @@ eq(count, 4, "Five Pokemon means lead plus four trailers")
 mode, count = plan("pokemon", false, 6)
 eq(count, 5, "Six Pokemon remains distinct from five")
 local followerDecorator = false
+local freeFlyDecorator
 for _, entry in ipairs(shared.sortedPartyDecorators()) do
   if entry.id == "followers" then followerDecorator = true end
+  if entry.id == "free_fly" then freeFlyDecorator = entry.decorate end
 end
 check(not followerDecorator, "PokéPC exclusively owns the FOLLOWING party row")
+check(type(freeFlyDecorator) == "function",
+  "SilverShadow owns one coordinated FREEFLY party decorator")
+saved.fly_badge_checks = false
+local flyMon = { species = "PIDGEY", hp = 10, moves = { { id = "FLY" } } }
+local flyMenu = freeFlyDecorator({
+  save = { inventory = {} },
+  data = { field = { outsideTilesets = { "OVERWORLD" } },
+    pokemon = { PIDGEY = { types = { "FLYING" }, tmhm = { "FLY" } } } },
+}, {}, flyMon, { overworld = {
+  map = { def = { tileset = "OVERWORLD" } }, player = {},
+} })
+eq(flyMenu[1].label, "FREEFLY", "Eligible outdoor FLY user gets FREEFLY")
 
 local followerMenu = screens.SilverShadowFollowers.new({})
 local followerCountRow
@@ -281,11 +309,12 @@ local function speed(state, factor, held, kind, player)
   saved.foot_boost, saved.bike_boost, saved.surf_boost = "OFF", "OFF", "OFF"
   saved[kind .. "_boost"] = state
   local avatar = player or { moving = true }
+  avatar.freeFlying = kind == "fly" or nil
   local ctx = { player = avatar, onBike = kind == "bike", surfing = kind == "surf",
     input = { isDown = function(_, key) return key == "b" and held end } }
   return hooks["movement.speed"](function(frames) return frames end, 16, ctx), avatar
 end
-for _, kind in ipairs({ "foot", "bike", "surf" }) do
+for _, kind in ipairs({ "foot", "bike", "surf", "fly" }) do
   for _, factor in ipairs(shared.MOVE_MULTIPLIERS) do
     local expected = math.max(4, math.floor(16 / factor + 0.5))
     eq(speed("OFF", factor, true, kind), 16, kind .. " OFF")
@@ -342,6 +371,37 @@ check(mod.exports.hasBadge(hmGame, "SURF"), "HM badge requirement is retained")
 eq(mod.exports.bestRod(hmGame), "SUPER_ROD", "fishing chooses best owned rod")
 hmGame.save.inventory.SOULBADGE = nil
 check(not mod.exports.hasBadge(hmGame, "SURF"), "missing badge blocks field move")
+
+-- Free Fly uses the shared movement multiplier and classifies only safe
+-- temporary travel companions. Surf-capable followers stay locked until HM03
+-- has actually been obtained.
+local travelGame = { save = { inventory = { HM03 = 1 } }, data = {
+  items = { HM03 = { machine = { kind = "HM", move = "SURF" } } },
+  pokemon = {
+    PIDGEY = { types = { "NORMAL", "FLYING" }, tmhm = { "FLY" } },
+    ABRA = { types = { "PSYCHIC" } },
+    GASTLY = { types = { "GHOST", "POISON" } },
+    SQUIRTLE = { types = { "WATER" } },
+    CATERPIE = { types = { "BUG" } },
+  },
+} }
+local classify = mod.exports.freeFly.classify
+eq(classify(travelGame, { species = "PIDGEY" }), "air",
+  "Flying followers join an airborne formation")
+eq(classify(travelGame, { species = "ABRA" }), "hover",
+  "Psychic followers may hover")
+eq(classify(travelGame, { species = "GASTLY" }), "hover",
+  "Ghost followers may hover")
+eq(classify(travelGame, { species = "SQUIRTLE" }), "surf",
+  "Water followers may swim after Surf is obtained")
+eq(classify(travelGame, { species = "CATERPIE" }), nil,
+  "Ground-only followers return to their Poke Balls")
+travelGame.save.inventory.HM03 = nil
+eq(classify(travelGame, { species = "SQUIRTLE" }), nil,
+  "Water followers wait until Surf is obtained")
+check(mod.exports.freeFly.eligible(travelGame, {
+  species = "PIDGEY", hp = 10, moves = { { id = "FLY" } },
+}), "A healthy FLY knower offers FREEFLY")
 
 -- SELECT arbitration wraps an existing handler. Controller and virtual/touch
 -- SELECT are consumed in free roam; non-SELECT input (including keyboard 3)

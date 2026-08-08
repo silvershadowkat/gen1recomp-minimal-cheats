@@ -45,6 +45,7 @@ return function(mod)
     "modules/display.lua",
     "modules/pc.lua",
     "modules/followers_integration.lua",
+    "modules/free_fly.lua",
     "modules/options.lua",
     "modules/ui_hooks.lua",
   }

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- Integrated a SilverShadow-specific Free Fly party action for eligible FLY users, with A-to-land controls, assisted landing, outdoor collision bypass, safe water landings, story-gate and badge enforcement, trainer-sight control, voxel-aware height, and strict link-session disablement.
+- Added `FLY BOOST`, `FLY HEIGHT`, `TRAINER SIGHT`, `STORY GATES`, and `BADGE CHECK` to Movement. Flight speed uses the existing shared `MOVE BOOST` multiplier and OFF/ON/HOLD behavior; no SELECT shortcut, whistle, or gift Pokémon is included.
+- Added travel-aware follower formations. The trainer rides the selected flight or SURF mount; Flying types fly, Psychic/Ghost types hover, and Water/SURF-capable followers swim after HM03 is obtained. Ground-only followers temporarily return to their Poké Balls and the exact configured pack returns on safe land.
+- Added per-species surf mounts for actual SURF-knowing party members while retaining the normal engine surf sprite for HM-device fallback.
+
 ### Fixed
 
 - Refresh PokéPC follower sprites automatically when a followed Pokémon evolves or its shiny appearance changes.

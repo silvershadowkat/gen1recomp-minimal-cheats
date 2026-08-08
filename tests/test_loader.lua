@@ -67,6 +67,9 @@ assert(run.loader.exports.minimal_cheats.boxScreen,
   "Gen 3 box screen was not exported")
 assert(run.loader.exports.minimal_cheats.usefulBag.perItemCap == 99,
   "normal per-item quantity cap changed")
+assert(type(run.loader.exports.minimal_cheats.freeFly) == "table"
+    and type(run.loader.exports.minimal_cheats.freeFly.isFlying) == "function",
+  "SilverShadow Free Fly API was not packaged")
 if withPokePC then
   assert(run.loader.mods.PokePCFollowers_VoxelMerge,
     "PokePC Followers optional dependency was not discovered")
@@ -75,6 +78,8 @@ if withPokePC then
   assert(type(run.loader.exports.minimal_cheats.setControlMode) == "function"
     and type(run.loader.exports.minimal_cheats.setFollowerCount) == "function",
     "SilverShadow follower control/trailer API was not installed")
+  assert(run.loader.exports.minimal_cheats.freeFlyAware == true,
+    "SilverShadow followers did not claim ownership of airborne formations")
   local appearanceDirty =
     run.loader.exports.minimal_cheats._trailerCompositionDirty
   assert(type(appearanceDirty) == "function",
@@ -90,6 +95,50 @@ if withPokePC then
     pokepcSpecies = "KAKUNA", pokepcShiny = false,
   } }, { { kind = "mon", mon = evolved } }),
     "an unchanged follower appearance must keep its existing NPC")
+  assert(appearanceDirty({ {
+    pokepcTrailerKind = "mon", pokepcMon = evolved,
+    pokepcSpecies = "KAKUNA", pokepcShiny = false,
+  } }, { { kind = "mon", mon = evolved, travelStyle = "hover" } }),
+    "entering a travel formation must rebuild the follower pose")
+  assert(not appearanceDirty({ {
+    pokepcTrailerKind = "mon", pokepcMon = evolved,
+    pokepcSpecies = "KAKUNA", pokepcShiny = false,
+    pokepcTravelStyle = "hover",
+  } }, { { kind = "mon", mon = evolved, travelStyle = "hover" } }),
+    "an unchanged travel formation must keep its follower NPC")
+  local travelFormation = run.loader.exports.minimal_cheats._travelFormation
+  assert(type(travelFormation) == "function",
+    "travel-aware follower formation planner was not installed")
+  local mount = { species = "PIDGEY", level = 10, hp = 20 }
+  local grounded = { species = "CATERPIE", level = 5, hp = 10 }
+  local flyer = { species = "BUTTERFREE", level = 12, hp = 25 }
+  local swimmer = { species = "SQUIRTLE", level = 12, hp = 25 }
+  local travelGame = { save = { pokepcFollowerCount = 2,
+      inventory = { HM03 = 1 } }, data = {
+    items = { HM03 = { machine = { kind = "HM", move = "SURF" } } },
+    pokemon = {
+      PIDGEY = { types = { "NORMAL", "FLYING" } },
+      CATERPIE = { types = { "BUG" } },
+      BUTTERFREE = { types = { "BUG", "FLYING" } },
+      SQUIRTLE = { types = { "WATER" } },
+    },
+  } }
+  local travelOw = { player = { freeFlying = true,
+      silverTravelMount = mount },
+    map = { isWaterCell = function() return true end } }
+  local candidates = {
+    { kind = "mon", mon = mount }, { kind = "mon", mon = grounded },
+    { kind = "mon", mon = flyer }, { kind = "mon", mon = swimmer },
+  }
+  local formation = travelFormation(travelGame, travelOw, candidates, "follow")
+  assert(#formation == 1 and formation[1].mon == flyer
+      and formation[1].travelStyle == "air",
+    "trainer-front count reserves one visible slot for the main mount")
+  formation = travelFormation(travelGame, travelOw, candidates, "pack")
+  assert(#formation == 2 and formation[1].mon == flyer
+      and formation[2].mon == swimmer
+      and formation[2].travelStyle == "surf",
+    "travel formation skips ground-only members and fills later safe slots")
 else
   assert(not run.loader.exports.minimal_cheats.followersIntegration.available(),
     "Followers integration should stay hidden when PokePC is absent")

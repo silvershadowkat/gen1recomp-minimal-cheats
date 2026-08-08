@@ -138,6 +138,11 @@ local menuDefs = {
       choice("FOOT BOOST", "foot_boost", shared.BOOST_STATES, "ON"),
       choice("BIKE BOOST", "bike_boost", shared.BOOST_STATES, "OFF"),
       choice("SURF BOOST", "surf_boost", shared.BOOST_STATES, "OFF"),
+      choice("FLY BOOST", "fly_boost", shared.BOOST_STATES, "ON"),
+      choice("FLY HEIGHT", "fly_height", shared.FLY_HEIGHTS, "MED"),
+      toggle("TRAINER SIGHT", "fly_trainer_sight", false),
+      toggle("STORY GATES", "fly_story_gates", true),
+      toggle("BADGE CHECK", "fly_badge_checks", true),
     }
   end,
   display = function()

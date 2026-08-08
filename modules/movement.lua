@@ -18,6 +18,9 @@ local function multiplier()
 end
 
 local function stateFor(ctx)
+  if ctx.player and ctx.player.freeFlying then
+    return shared.allowed("fly_boost", shared.BOOST_STATES, "ON")
+  end
   if ctx.surfing then return shared.allowed("surf_boost", shared.BOOST_STATES, "OFF") end
   if ctx.onBike then return shared.allowed("bike_boost", shared.BOOST_STATES, "OFF") end
   return shared.allowed("foot_boost", shared.BOOST_STATES, "ON")

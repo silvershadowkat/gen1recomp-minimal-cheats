@@ -8,6 +8,7 @@ SilverShadow Mods contains adapted MIT-licensed source where noted and clean-roo
 - **Gen 3 Boxes** — https://github.com/MadeinTaly/gen1recomp-gen3-boxes — storage UI and behavior. Copyright © 2026 MadeinTaly.
 - **Access PC Anywhere**, **Battle Move Info**, and **Heal Anywhere** — https://github.com/masterwebx — PC access, battle move overlay, and paid healing behavior. Copyright © 2026 masterwebx.
 - **Running Shoes** — https://github.com/MadeinTaly/gen1recomp-running-shoes — safe movement-duration/restoration design. Copyright © 2026 MadeinTaly.
+- **Free Fly** — https://github.com/ShaneHudson/gen1recomp-mods/tree/main/free_fly — free-roam flight state, collision/landing gates, and rider-rendering design, substantially adapted for SilverShadow menus, movement, link safety, Android memory use, and multi-follower travel. Copyright © 2026 Shane Hudson.
 - **Followers EX** — https://github.com/masterwebx/Gen1Recomp-Followers-EX — optional control/trailer engine only; wild spawns and assets excluded. Copyright © 2026 masterwebx.
 - **FAFF0x packaged modules** — https://github.com/FAFF0x/gen1recomp — Area DexNav, DV/EV Editor, HM Anywhere, Moves Manager, Reusable Machines, Summon, and All TM Shop. The packaged modules declare MIT; All TM Shop is copyright © 2026 Pokémon MOD and the remaining package notices state copyright © 2026.
 

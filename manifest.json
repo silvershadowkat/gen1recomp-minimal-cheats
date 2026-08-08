@@ -11,8 +11,8 @@
   "priority": 100,
   "dependencies": [],
   "optional_dependencies": ["PokePCFollowers_VoxelMerge", "DRAMATIC_SHAPE"],
-  "conflicts": [],
+  "conflicts": ["free_fly"],
   "affects_link": false,
   "permissions": ["engine_internals"],
-  "description": "A modular single-player overhaul with cheats, all 151 encounters, storage, field tools, movement, display, and optional follower integration. Gameplay cheats are disabled during online/link PvP."
+  "description": "A modular single-player overhaul with cheats, all 151 encounters, storage, field tools, Free Fly, movement, display, and optional travel-aware followers. Gameplay changes are disabled during online/link PvP."
 }

@@ -1,4 +1,4 @@
-﻿-- Control / pack / trailer engine (ported from local PokePCFollowers 1.5.0).
+-- Control / pack / trailer engine (ported from local PokePCFollowers 1.5.0).
 -- hostMod = FOLLOWERS_EX; assetMod = PokePCFollowers_VoxelMerge (sprites).
 -- NOTE: mod:find() returns {id, version, exports} — it does NOT include .path.
 return function(hostMod, assetMod)
@@ -321,6 +321,8 @@ return function(hostMod, assetMod)
   local function yellowStockFollowActive(game)
     if not GameVersion.isYellow() then return false end
     if controlMode(game) ~= "follow" then return false end
+    local player = game and game.overworld and game.overworld.player
+    if player and (player.freeFlying or player.surfing) then return false end
     local save = game and game.save
     return partyPikachuIndex(save) ~= nil
   end
@@ -373,7 +375,7 @@ return function(hostMod, assetMod)
       and GameVersion.isYellow()
   end
 
-  local function partyTrailMons(game)
+  local function partyTrailMons(game, applyLimit)
     -- Party mons that may trail (healthy). When the player IS the pokemon,
     -- never trail the controlled leader (by index / identity) — otherwise a
     -- mon can "follow itself". Trainer-walk puts the leader first.
@@ -420,8 +422,88 @@ return function(hostMod, assetMod)
         push(mon, i)
       end
     end
-    local n = followerCount(game)
-    while #out > n do out[#out] = nil end
+    if applyLimit ~= false then
+      local n = followerCount(game)
+      while #out > n do out[#out] = nil end
+    end
+    return out
+  end
+
+  -- Travel formations are derived from the normal configured pack; they
+  -- never alter party order, leader selection, follower count, or saves.
+  local function knowsMove(mon, moveId)
+    for _, move in ipairs((mon and mon.moves) or {}) do
+      if (type(move) == "table" and move.id or move) == moveId then return true end
+    end
+    return false
+  end
+
+  local function hasType(game, mon, wanted)
+    local def = mon and game and game.data and game.data.pokemon
+      and game.data.pokemon[mon.species]
+    for _, kind in ipairs((def and def.types) or {}) do
+      if kind == wanted then return true end
+    end
+    return false
+  end
+
+  local function ownsSurf(game)
+    local inventory = game and game.save and game.save.inventory or {}
+    local items = game and game.data and game.data.items or {}
+    for itemId, count in pairs(inventory) do
+      if count == true or (type(count) == "number" and count > 0) then
+        local machine = items[itemId] and items[itemId].machine
+        if machine and machine.kind == "HM" and machine.move == "SURF" then
+          return true
+        end
+      end
+    end
+    return false
+  end
+
+  local function sameMon(a, b)
+    return a ~= nil and b ~= nil
+      and (a == b or monIdentityKey(a) == monIdentityKey(b))
+  end
+
+  local function travelStyle(game, mon, overWater)
+    if hasType(game, mon, "FLYING") then return "air" end
+    if hasType(game, mon, "PSYCHIC") or hasType(game, mon, "GHOST") then
+      return "hover"
+    end
+    if overWater and ownsSurf(game)
+        and (hasType(game, mon, "WATER") or knowsMove(mon, "SURF")) then
+      return "surf"
+    end
+    return nil
+  end
+
+  local function travelFormation(game, ow, want, mode)
+    local player = ow and ow.player
+    local flying = player and player.freeFlying == true
+    local surfing = player and player.surfing == true
+    if not (flying or surfing) then return want end
+    local overWater = surfing or (ow.map and player
+      and ow.map:isWaterCell(player.cellX, player.cellY))
+    local mount = flying and player.silverTravelMount or player.silverSurfMount
+    local out = {}
+    for _, spec in ipairs(want) do
+      -- The trainer is rendered seated on the main travel Pokemon. The mount
+      -- itself is likewise never duplicated in the trailing pack.
+      if spec.kind == "mon" and not sameMon(spec.mon, mount) then
+        local style = travelStyle(game, spec.mon, overWater)
+        if style then
+          out[#out + 1] = { kind = "mon", mon = spec.mon,
+            travelStyle = style }
+        end
+      end
+    end
+    -- The main mount consumes one visible-Pokemon slot in trainer-front
+    -- mode. Pokemon-front modes already store only the trailer count, so the
+    -- mount replaces their controlled lead without reducing that allowance.
+    local limit = followerCount(game)
+    if mode == "follow" then limit = math.max(0, limit - 1) end
+    while #out > limit do out[#out] = nil end
     return out
   end
 
@@ -442,8 +524,24 @@ return function(hostMod, assetMod)
       .. tostring(species or "CHARMANDER") .. ".png"
   end
 
+  local travelSpriteCache = {}
   local function invalidateFollowerImageCache()
     followerImgCache = {}
+    travelSpriteCache = {}
+  end
+
+  local function travelSprite(game, mon)
+    if not mon then return nil end
+    local shiny = Stats.isShiny and Stats.isShiny(mon.dvs) and true or false
+    local key = tostring(mon.species) .. (shiny and "#S" or "#N")
+    if travelSpriteCache[key] then return travelSpriteCache[key] end
+    local ok, sprite = pcall(SpriteRenderer.new, {
+      id = "SPRITE_SILVERSHADOW_TRAVEL",
+      image = followerPath(mon.species), frames = 6,
+      walker = true, trueColor = true, pokepcShiny = shiny,
+    }, "silvershadow_travel_" .. key)
+    if ok and sprite then travelSpriteCache[key] = sprite; return sprite end
+    return nil
   end
 
   -- PokePC walker sheets only (16x96). No Wilds follow-sprite switching.
@@ -512,7 +610,7 @@ return function(hostMod, assetMod)
   local function applyPlayerAsPokemon(game, ow, force)
     local player = ow and ow.player
     if not player then return end
-    if player.surfing or player.onBike or player.fishing then
+    if player.surfing or player.freeFlying or player.onBike or player.fishing then
       restorePlayerTrainerSprite(game, ow)
       return
     end
@@ -564,7 +662,8 @@ return function(hostMod, assetMod)
     ow.pokepcTrailCells = {}
   end
 
-  local function makeTrailer(game, ow, x, y, facing, kind, mon, slot)
+  local function makeTrailer(game, ow, x, y, facing, kind, mon, slot,
+                             travelStyle)
     local npc = NPC.new(game.data, ow.map.id, {
       index = TRAILER_BASE + slot,
       name = "POKEPC_TRAILER_" .. tostring(slot),
@@ -575,6 +674,8 @@ return function(hostMod, assetMod)
     npc.pokepcTrailerKind = kind
     npc.pokepcTrailerId = kind .. ":" .. tostring(slot)
     npc.pokepcMon = mon
+    npc.pokepcTravelStyle = travelStyle
+    npc.pokepcTravelSlot = slot
     npc.passable = true
     npc.facing = facing or "down"
     -- NEVER set pikachuFollower on trailers. Stock PikachuFollower.findFollower
@@ -617,10 +718,42 @@ return function(hostMod, assetMod)
     end
 
     npc.walkPhase = function(self)
+      if self.pokepcTravelStyle == "air" then
+        return math.floor(love.timer.getTime() * 7) % 2
+      elseif self.pokepcTravelStyle == "hover" then
+        return math.floor(love.timer.getTime() * 4) % 2
+      end
       if self.moving then
         return NPC.walkPhase(self)
       end
       return 0
+    end
+    npc.pose = function(self)
+      local sprite, px, py, dir, phase, flip, hop = NPC.pose(self)
+      local lift = self.pokepcTravelLift or 0
+      if self.pokepcTravelStyle == "hover" then
+        lift = lift + (math.floor(love.timer.getTime() * 3) % 2)
+      elseif self.pokepcTravelStyle == "surf" then
+        py = py + (math.floor(love.timer.getTime() * 2) % 2)
+      end
+      return sprite, px, py - lift, dir, phase, flip, hop
+    end
+    npc.draw = function(self, camX, camY)
+      local style = self.pokepcTravelStyle
+      if style and love and love.graphics then
+        if style == "surf" then
+          love.graphics.setColor(0.2, 0.55, 0.9, 0.38)
+          love.graphics.ellipse("line", self.px + 8 - camX,
+            self.py + 14 - camY, 7, 2)
+        elseif (self.pokepcTravelLift or 0) > 0 then
+          local fade = math.max(0.2, 1 - (self.pokepcTravelLift or 0) / 100)
+          love.graphics.setColor(0, 0, 0, 0.28 * fade)
+          love.graphics.ellipse("fill", self.px + 8 - camX,
+            self.py + 14 - camY, 5, 2)
+        end
+        love.graphics.setColor(1, 1, 1, 1)
+      end
+      return NPC.draw(self, camX, camY)
     end
     return npc
   end
@@ -659,13 +792,20 @@ return function(hostMod, assetMod)
     if facing then npc.facing = facing end
   end
 
-  local function seedTrailBehind(ow, anchor, facing, n)
+  local function seedTrailBehind(ow, anchor, facing, n, anyTerrain)
     local goals = {}
     local px = anchor.cellX or 0
     local py = anchor.cellY or 0
     facing = facing or anchor.facing or "down"
     for i = 1, n do
-      local bx, by = walkableBehind(ow, px, py, facing, i)
+      local bx, by
+      if anyTerrain then
+        local ox, oy = behindOffset(facing, i)
+        bx, by = px + ox, py + oy
+        if not ow.map:inBounds(bx, by) then bx, by = px, py end
+      else
+        bx, by = walkableBehind(ow, px, py, facing, i)
+      end
       goals[i] = { x = bx, y = by }
     end
     return goals
@@ -689,6 +829,7 @@ return function(hostMod, assetMod)
     for i, spec in ipairs(want) do
       local t = trailers[i]
       if not t or t.pokepcTrailerKind ~= spec.kind then return true end
+      if t.pokepcTravelStyle ~= spec.travelStyle then return true end
       if spec.kind == "mon" then
         local sp = spec.mon and spec.mon.species
         local shiny = spec.mon and Stats.isShiny
@@ -709,6 +850,8 @@ return function(hostMod, assetMod)
     opts = opts or {}
     if not ow or not ow.player or not ow.map then return end
     local mode = controlMode(game)
+    local p = ow.player
+    local traveling = p.freeFlying == true or p.surfing == true
     local want = {}
 
     -- Solo "pokemon" with a pack size still trails party mons (no trainer NPC).
@@ -719,22 +862,22 @@ return function(hostMod, assetMod)
 
     if mode == "lead_trainer" then
       -- Mons first (closest to the leader); trainer brings up the rear.
-      for _, entry in ipairs(partyTrailMons(game)) do
+      for _, entry in ipairs(partyTrailMons(game, not traveling)) do
         want[#want + 1] = { kind = "mon", mon = entry.mon }
       end
       want[#want + 1] = { kind = "trainer", mon = nil }
     elseif mode == "follow" or mode == "pack" then
-      for _, entry in ipairs(partyTrailMons(game)) do
+      for _, entry in ipairs(partyTrailMons(game, not traveling)) do
         want[#want + 1] = { kind = "mon", mon = entry.mon }
       end
     end
     -- mode == "pokemon" and count 0: solo leader, no trailers
+    want = travelFormation(game, ow, want, mode)
 
     local trailers = ow.pokepcTrailers or {}
     local dirty = compositionDirty(trailers, want)
       or not trailersAliveInWorld(ow, trailers)
 
-    local p = ow.player
     local anchor = trailAnchor(game, ow, p)
     local facing = (anchor and anchor.facing) or p.facing or "down"
     local mapEnter = opts.mapEnter == true
@@ -755,12 +898,13 @@ return function(hostMod, assetMod)
     if dirty then
       removeTrailers(ow)
       trailers = {}
-      local goals = seedTrailBehind(ow, anchor, facing, #want)
+      local goals = seedTrailBehind(ow, anchor, facing, #want, traveling)
       for i, spec in ipairs(want) do
         local cell = goals[i] or { x = anchor.cellX, y = anchor.cellY }
         local bx, by = cell.x, cell.y
         local okNpc, npc = pcall(makeTrailer, game, ow, bx, by, facing,
-                                      spec.kind, spec.mon, i)
+                                      spec.kind, spec.mon, i,
+                                      spec.travelStyle)
         if not okNpc or not npc then
           print("[FOLLOWERS_EX] trailer spawn failed slot " .. tostring(i)
             .. ": " .. tostring(npc))
@@ -778,7 +922,7 @@ return function(hostMod, assetMod)
       ow.pokepcTrailHead = { x = anchor.cellX, y = anchor.cellY }
     elseif mapEnter and #trailers > 0 then
       -- Same pack composition: keep NPCs, soft-reset behind the trail anchor.
-      local goals = seedTrailBehind(ow, anchor, facing, #trailers)
+      local goals = seedTrailBehind(ow, anchor, facing, #trailers, traveling)
       for i, npc in ipairs(trailers) do
         local g = goals[i] or { x = anchor.cellX, y = anchor.cellY }
         placeTrailerAt(npc, g.x, g.y, facing)
@@ -788,6 +932,27 @@ return function(hostMod, assetMod)
       end
       ow.pokepcTrailCells = goals
       ow.pokepcTrailHead = { x = anchor.cellX, y = anchor.cellY }
+    end
+
+    -- Air followers form a shallow descending line behind the mount. During
+    -- surfing, Flying/Psychic/Ghost followers hover above the water while
+    -- Water/SURF followers ride the surface. During flight over water the
+    -- same split lets swimmers stay below the airborne formation.
+    local player = ow.player
+    for i, npc in ipairs(trailers) do
+      local style = npc.pokepcTravelStyle
+      if player.freeFlying and (style == "air" or style == "hover") then
+        local base = tonumber(player.silverTravelAltitude
+          or player.freeFlyAlt) or 0
+        npc.pokepcTravelLift = math.max(style == "air" and 10 or 7,
+          base - 8 - (i - 1) * 4)
+      elseif player.surfing and style == "air" then
+        npc.pokepcTravelLift = 12 + math.max(0, 3 - i)
+      elseif player.surfing and style == "hover" then
+        npc.pokepcTravelLift = 8 + math.max(0, 2 - i)
+      else
+        npc.pokepcTravelLift = 0
+      end
     end
 
     -- Trail commits track the anchor (stock Pika when Yellow follow is active).
@@ -923,6 +1088,9 @@ return function(hostMod, assetMod)
   end
 
   local function newShouldSpawn(game, ow)
+    if ow and ow.player and (ow.player.freeFlying or ow.player.surfing) then
+      return false
+    end
     local mode = controlMode(game)
     -- FOLLOWERS 0 is an explicit trainer-only composition, including Yellow;
     -- do not let the stock Pikachu follower fill the otherwise empty trail.
@@ -1233,7 +1401,12 @@ return function(hostMod, assetMod)
     syncTrailers = syncTrailers,
     alignSaveFromOptions = alignSaveFromOptions,
     invalidateFollowerImageCache = invalidateFollowerImageCache,
+    travelSprite = travelSprite,
+    travelStyle = travelStyle,
+    ownsSurf = ownsSurf,
+    freeFlyAware = true,
     _trailerCompositionDirty = compositionDirty,
+    _travelFormation = travelFormation,
     syncAll = function(game, ow)
       invalidateFollowerImageCache()
       if ow then pcall(removeTrailers, ow) end

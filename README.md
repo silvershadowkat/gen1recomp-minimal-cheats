@@ -19,6 +19,7 @@ Version 2.0.2 adds Gen1Recomp launcher updates through the mod's GitHub releases
 - Gen 3-style storage boxes and Start/physical-PC access to Pokémon and item storage
 - Area DexNav on free-roam SELECT, using the final live encounter table
 - HM Anywhere with HM-item and badge requirements; deterministic Surf/Fish interaction uses the best owned rod
+- Party-menu Free Fly for eligible FLY users, using A to land and no SELECT shortcut or gift Pokémon
 - Moves Manager with evolutionary-line move memory and DV/EV Editor
 - Battle Move Info, reusable TMs, forgettable HMs, and the universal free TM shop
 - Start-menu Heal and Summon tools
@@ -34,7 +35,7 @@ Normal Options contains one `SILVERSHADOW  OPEN` row. Its grouped menus contain:
 - **World:** No Encounters and Lights On
 - **Healing:** Poison Save, Heal on Map Change, Heal after Battle, Box Heals
 - **Supplies:** PC Rare Candy (target 99) and Max Game Coins (9999)
-- **Movement:** x1.5/x2/x3/x4 and independent OFF/ON/HOLD behavior for foot, bike, and surf movement
+- **Movement:** x1.5/x2/x3/x4 and independent OFF/ON/HOLD behavior for foot, bike, surf, and flight; LOW/MED/HIGH flight height; trainer sight, story gates, and badge checks
 - **Display:** XP Bar, caught indicator, and location banners (all on by default)
 - **Storage:** Classic/Big box grid and cursor wrapping
 - **Followers:** shown only when PokéPC Followers is installed
@@ -43,12 +44,17 @@ Normal Options contains one `SILVERSHADOW  OPEN` row. Its grouped menus contain:
 
 `ON` movement is boosted by default and holding B temporarily returns to vanilla speed. `HOLD` is vanilla by default and holding B boosts it. The unified engine only adjusts player manual-step duration, calls the engine's existing modifier first, floors movement at four frames, and restores the vanilla duration before scripts.
 
+Select `FREEFLY` from an eligible party Pokémon outdoors. Press A to land; B remains dedicated to the selected `FLY BOOST` behavior. Water landing requires HM03 and, while `BADGE CHECK` is on, the SOULBADGE. Flight never starts during a link session, cannot enter doors or trigger ground encounters, and saving is refused until landing.
+
 ## Compatibility and safety
 
 - **Link/PvP:** gameplay cheats become inert during link battles and sessions. `affects_link` remains false by design.
+- **Standalone Free Fly:** do not enable both versions. SilverShadow declares a conflict with the standalone `free_fly` mod because it already contains the adapted flight hooks and party action.
 - **Dramatic Shape Voxel Mod:** SilverShadow's outer free-roam handler owns controller/touch SELECT for DexNav; keyboard `3`, Dramatic Shape's Options rows, battle SELECT, and menu SELECT remain untouched.
 - **SilverShadow Touchpad:** virtual SELECT uses the same normal input path as controller SELECT and therefore reaches DexNav.
 - **PokéPC Followers:** optional. In Trainer mode, `FOLLOWERS` is the number of Pokémon behind the trainer; choose `0` to switch to Trainer mode with the trainer alone. In Pokémon mode, it is the total number of Pokémon on screen including the lead; `TRAINER TRAIL` independently puts the trainer behind them. PokéPC remains the owner of all walker sprites.
+
+During flight and surfing, SilverShadow temporarily converts that configured pack into a terrain-safe travel formation without changing the saved party order or follower settings. The trainer rides the selected FLY mount or first healthy SURF knower. Flying types fly, Psychic and Ghost types hover, and Water types or SURF knowers can swim once HM03 has been obtained; all other followers wait in their Poké Balls. The selected mount is never duplicated, and normal followers return on landing or dismount.
 
 Followers EX is not required. No PokéPC, Dramatic Shape, Stadium, follower, or ROM-derived assets are bundled. Overworld Encounters and Followers EX wild-spawn/roaming systems are intentionally not included.
 

@@ -129,5 +129,6 @@ mod.exports.followersIntegration = {
   available = shared.followersAvailable,
   applyMode = applyMode,
   followerPlan = followerPlan,
+  engine = api,
   usesExternalAssets = true,
 }
