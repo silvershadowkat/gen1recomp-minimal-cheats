@@ -2,6 +2,7 @@ local mod, shared = ...
 
 local battleState = setmetatable({}, { __mode = "k" })
 local critEligible = false
+local unpack = table.unpack or unpack
 local BALL_IDS = {
   POKE_BALL = true, GREAT_BALL = true, ULTRA_BALL = true, MASTER_BALL = true,
 }
@@ -86,6 +87,70 @@ local function healActivePlayer(battle)
   if not maxHP or maxHP <= 0 then return end
   mon.hp = maxHP
   if battler.shownHP ~= nil then battler.shownHP = maxHP end
+end
+
+-- Charge/recharge and self-KO are implemented as BattleState methods rather
+-- than public hooks.  Install one reload-safe dispatcher on the engine table;
+-- the active mod instance replaces only the control callbacks.
+local BattleState = require("src.battle.BattleState")
+local originalPerformMove = BattleState._silverOriginalPerformMove
+  or BattleState.performMove
+local originalSelfDestruct = BattleState._silverOriginalSelfDestruct
+  or BattleState.selfDestruct
+BattleState._silverOriginalPerformMove = originalPerformMove
+BattleState._silverOriginalSelfDestruct = originalSelfDestruct
+
+local function drawbacksAllowed(battle, user)
+  return user and user.isPlayer == true and shared.gameplayAllowed(battle)
+    and shared.bool("no_move_drawbacks", false)
+end
+
+BattleState._silverDrawbackControl = {
+  skipTurns = drawbacksAllowed,
+  preventSelfKo = function(battle, user)
+    return user and user.isPlayer == true and shared.gameplayAllowed(battle)
+      and (shared.bool("no_move_drawbacks", false)
+        or shared.bool("infinite_hp", false))
+  end,
+}
+
+if BattleState.performMove ~= BattleState._silverPerformMoveWrapper then
+  BattleState._silverPerformMoveWrapper = function(self, user, target, moveInst, isCalled)
+    local control = BattleState._silverDrawbackControl
+    if not (control and control.skipTurns
+        and control.skipTurns(self, user)) then
+      return originalPerformMove(self, user, target, moveInst, isCalled)
+    end
+
+    local move = self:moveDef(moveInst)
+    local record = move and self:effectRecord(move.effect)
+    if record and record.charge then
+      local alreadyCharging = user.charging == moveInst and user.chargeReady
+      if not alreadyCharging and not moveInst.struggle and not isCalled then
+        moveInst.pp = math.max(0, (tonumber(moveInst.pp) or 0) - 1)
+      end
+      -- BattleState sees this as the release turn: it clears the temporary
+      -- state and resolves the attack immediately without charging first.
+      user.charging = moveInst
+      user.chargeReady = true
+    end
+
+    local result = { pcall(originalPerformMove, self, user, target, moveInst, isCalled) }
+    user.mustRecharge = nil
+    if not result[1] then error(result[2], 0) end
+    return unpack(result, 2)
+  end
+  BattleState.performMove = BattleState._silverPerformMoveWrapper
+end
+
+if BattleState.selfDestruct ~= BattleState._silverSelfDestructWrapper then
+  BattleState._silverSelfDestructWrapper = function(self, user)
+    local control = BattleState._silverDrawbackControl
+    if control and control.preventSelfKo
+        and control.preventSelfKo(self, user) then return end
+    return originalSelfDestruct(self, user)
+  end
+  BattleState.selfDestruct = BattleState._silverSelfDestructWrapper
 end
 
 local function livePcCapacity(game)

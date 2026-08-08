@@ -63,10 +63,12 @@ local function install(path, ...)
 end
 
 local shared = install("modules/core.lua", mod)
+install("modules/extended_levels.lua", mod, shared)
 install("modules/cheats.lua", mod, shared)
 install("modules/movement.lua", mod, shared)
 install("modules/healing.lua", mod, shared)
 install("modules/moves_manager.lua", mod, shared)
+install("modules/dv_ev_editor.lua", mod, shared)
 install("modules/dexnav.lua", mod, shared)
 install("modules/field_moves.lua", mod, shared)
 install("modules/followers_integration.lua", mod, shared)
@@ -119,6 +121,9 @@ for _, label in ipairs({ "FLY BOOST", "FLY HEIGHT", "TRAINER SIGHT",
                          "STORY GATES", "BADGE CHECK" }) do
   check(movementLabels[label], "Movement exposes " .. label)
 end
+local battleLabels = labels("SilverShadowBattle")
+check(battleLabels["NO DRAWBACKS"],
+  "Battle menu exposes the player-only move drawback toggle")
 
 -- The menu count means Pokemon on screen when a Pokemon leads, but means
 -- Pokemon behind the trainer when the trainer leads.
@@ -242,15 +247,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.0.5",
+  tag_name = "v2.1.0",
   assets = { {
-    name = "silvershadow-mods-v2.0.5.zip",
+    name = "silvershadow-mods-v2.1.0.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.0.5", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.0.5.zip",
+eq(release.version, "2.1.0", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v2.1.0.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.
@@ -343,11 +348,98 @@ local moveGame = { data = { pokemon = {
     level1Moves = { "HARDEN" }, learnset = {} },
   BUTTERFREE = { evolutions = {}, level1Moves = {},
     learnset = { { level = 10, move = "CONFUSION" }, { level = 20, move = "WHIRLWIND" } } },
-}, moves = {} } }
+}, moves = {
+  TACKLE = { name = "Tackle", type = "NORMAL", power = 40,
+    effect = "NO_ADDITIONAL_EFFECT", pp = 35 },
+  EXPLOSION = { name = "Explosion", type = "NORMAL", power = 170,
+    effect = "EXPLODE_EFFECT", pp = 5 },
+  HYPER_BEAM = { name = "Hyper Beam", type = "NORMAL", power = 150,
+    effect = "HYPER_BEAM_EFFECT", pp = 5 },
+  COUNTER = { name = "Counter", type = "FIGHTING", power = 0,
+    effect = "COUNTER_EFFECT", pp = 20 },
+  SOLARBEAM = { name = "SolarBeam", type = "GRASS", power = 120,
+    effect = "CHARGE_EFFECT", pp = 10 },
+  THUNDER_WAVE = { name = "Thunder Wave", type = "ELECTRIC", power = 0,
+    effect = "PARALYZE_EFFECT", pp = 20 },
+  METRONOME = { name = "Metronome", type = "NORMAL", power = 0,
+    effect = "METRONOME_EFFECT", pp = 10 },
+} } }
 local butterfree = { species = "BUTTERFREE", level = 12, moves = {} }
 local learned = mod.exports.learnedMoves(moveGame, butterfree)
 eq(table.concat(learned, ","), "TACKLE,STRING_SHOT,HARDEN,CONFUSION",
   "Butterfree remembers legitimate evolutionary-line moves")
+local allMoves = mod.exports.allMoves
+local covered, missing, total = allMoves.coverage(moveGame)
+check(covered and missing == nil and total == 7,
+  "All Moves assigns every registered move exactly once")
+local physicalNormal = allMoves.rows(moveGame, "physical", "NORMAL")
+eq(table.concat((function()
+  local out = {}; for _, row in ipairs(physicalNormal) do out[#out + 1] = row.id end
+  return out
+end)(), ","), "EXPLOSION,HYPER_BEAM,TACKLE",
+  "Caterpie can browse every alphabetical Normal attack")
+eq(select(1, allMoves.branch(moveGame.data.moves.COUNTER)), "physical",
+  "zero-power Counter remains a damaging Physical move")
+local section, group = allMoves.branch(moveGame.data.moves.THUNDER_WAVE)
+eq(section .. "/" .. group, "status/major",
+  "Thunder Wave is grouped under Major Status")
+section, group = allMoves.branch(moveGame.data.moves.METRONOME)
+eq(section .. "/" .. group, "status/utility",
+  "Metronome remains reachable under Utility/Other")
+
+-- Player-owned levels extend cleanly through the byte-sized cap while using
+-- a constant 99->100 EXP step above level 100.
+local levelGame = { data = { constants = {}, growth_rates = nil, pokemon = {
+  CATERPIE = { name = "Caterpie", growthRate = "MEDIUM_FAST", baseStats = {
+    hp = 45, attack = 30, defense = 35, speed = 45, special = 20,
+  } },
+} }, save = { party = {}, boxes = {} } }
+local levelMon = { species = "CATERPIE", level = 100,
+  exp = 1000000, hp = 100, stats = { hp = 100 },
+  dvs = {}, statExp = {}, moves = {} }
+levelGame.save.party[1] = levelMon
+shared.game = levelGame
+local extended = mod.exports.extendedLevels
+check(extended.setLevel(levelGame, levelMon, 101, true),
+  "DV/EV level editor can set level 101")
+eq(levelMon.level, 101, "player Pokemon level exceeds 100")
+local step = extended.expForLevel("MEDIUM_FAST", 100)
+  - extended.expForLevel("MEDIUM_FAST", 99)
+eq(extended.expForLevel("MEDIUM_FAST", 101)
+  - extended.expForLevel("MEDIUM_FAST", 100), step,
+  "post-100 EXP uses the 99->100 requirement")
+extended.setLevel(levelGame, levelMon, 999, true)
+eq(levelMon.level, 255, "extended level is safely capped at 255")
+emit("save.writing", { save = levelGame.save })
+eq(levelMon.silverExtendedLevel, 255, "extended level persists beside vanilla data")
+levelMon.level = 100
+emit("save.loaded", { save = levelGame.save })
+eq(levelMon.level, 255, "extended level is restored after vanilla validation")
+extended.setLevel(levelGame, levelMon, 100, true)
+levelGame.data.constants.levelCap = 255
+levelMon.exp = extended.expForLevel("MEDIUM_FAST", 101) - 1
+local levels = require("src.battle.Experience").apply(levelGame.data, levelMon, {
+  baseExp = 7, baseStats = { hp = 1, attack = 1, defense = 1, speed = 1,
+    special = 1 },
+}, 1, false, 1, false)
+eq(levels[1], 101, "ordinary battle EXP levels a player Pokemon past 100")
+levelMon.level = 255
+eq(hooks["exp.gain"](function() return 99 end, { mon = levelMon }), 0,
+  "level 255 Pokemon stop accumulating experience")
+levelMon.level = 101
+
+-- Infinite HP always protects against player Selfdestruct/Explosion; the new
+-- toggle provides the same protection even when Infinite HP is off.
+local BattleState = require("src.battle.BattleState")
+local selfKoBattle = setmetatable({ kind = "wild",
+  onFaint = function(_, battler) battler.fainted = true end }, { __index = BattleState })
+local selfKoUser = { isPlayer = true, mon = { hp = 50 } }
+saved.infinite_hp, saved.no_move_drawbacks = true, false
+selfKoBattle:selfDestruct(selfKoUser)
+eq(selfKoUser.mon.hp, 50, "Infinite HP blocks Explosion self-KO")
+saved.infinite_hp, saved.no_move_drawbacks = false, true
+selfKoBattle:selfDestruct(selfKoUser)
+eq(selfKoUser.mon.hp, 50, "No Drawbacks blocks Explosion self-KO")
 
 -- DexNav reads the final live table, omits caught species, and never calls
 -- encounter.roll (so NO ENCOUNTERS cannot block an explicit request).

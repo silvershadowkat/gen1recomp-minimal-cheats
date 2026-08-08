@@ -50,7 +50,7 @@ end
 assert(run.loader.mods.minimal_cheats, "SilverShadow was not discovered")
 assert(#run.errors == 0, "loader errors: " .. table.concat(run.errors, "; "))
 assert(run.loader.exports.minimal_cheats, "SilverShadow exports were not published")
-assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.0.5",
+assert(run.loader.exports.minimal_cheats.silvershadow.version == "2.1.0",
   "wrong runtime export version")
 assert(run.loader.mods.minimal_cheats.manifest.github
     == "silvershadowkat/gen1recomp-minimal-cheats",

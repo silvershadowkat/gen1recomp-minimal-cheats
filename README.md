@@ -6,7 +6,7 @@ Pokémon Blue is the primary target. Red and Yellow use the engine's live game d
 
 ## Install
 
-Download `silvershadow-mods-v2.0.5.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
+Download `silvershadow-mods-v2.1.0.zip` from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted `silvershadow_mods` folder directly into Gen1Recomp's `mods` directory. Do not use GitHub's automatically generated source archive.
 
 The installable archive has `manifest.json`, `main.lua`, and `modules/` at its root; it contains no ROM data or Pokémon artwork.
 
@@ -20,7 +20,7 @@ Version 2.0.2 adds Gen1Recomp launcher updates through the mod's GitHub releases
 - Area DexNav on free-roam SELECT, using the final live encounter table
 - HM Anywhere with HM-item and badge requirements; deterministic Surf/Fish interaction uses the best owned rod
 - Party-menu Free Fly for eligible FLY users, using A to land and no SELECT shortcut or gift Pokémon
-- Moves Manager with evolutionary-line move memory and DV/EV Editor
+- Moves Manager with evolutionary-line memory plus a complete, categorized `ALL MOVES` browser; the DV/EV Editor also edits player-owned levels through 255
 - Battle Move Info, reusable TMs, forgettable HMs, and the universal free TM shop
 - Start-menu Heal and Summon tools
 
@@ -30,7 +30,7 @@ These structural systems have no master toggle because other integrated systems 
 
 Normal Options contains one `SILVERSHADOW  OPEN` row. Its grouped menus contain:
 
-- **Battle:** Infinite HP/PP, EXP x1/x2/x4/x8/x10, damage x1/x2/x4/x8/x10/OHKO, Always Hit/Crit/First/Escape
+- **Battle:** Infinite HP/PP, No Drawbacks, EXP x1/x2/x4/x8/x10, damage x1/x2/x4/x8/x10/OHKO, Always Hit/Crit/First/Escape
 - **Capture:** 100% Catch, Endless Balls, Full Heal Catch, Perfect DVs
 - **World:** No Encounters and Lights On
 - **Healing:** Poison Save, Heal on Map Change, Heal after Battle, Box Heals
@@ -43,6 +43,10 @@ Normal Options contains one `SILVERSHADOW  OPEN` row. Its grouped menus contain:
 `BOX HEAL` is the Gen 3 storage behavior: when enabled, closing the storage screen heals Pokémon in boxes. It does not control the paid `HEAL ¥...` Start-menu command. Paid field-heal cost increases with each use and resets only after completing a heal with a Pokémon Center nurse; changing maps or routes does not reset it.
 
 `ON` movement is boosted by default and holding B temporarily returns to vanilla speed. `HOLD` is vanilla by default and holding B boosts it. The unified engine only adjusts player manual-step duration, calls the engine's existing modifier first, floors movement at four frames, and restores the vanilla duration before scripts.
+
+In a PokÃ©mon's `MOVES` screen, choose a slot and `CHANGE`, then press SELECT to switch between `LEARNED MOVES` and `ALL MOVES`. Physical and Special attacks are grouped by their Generation I damage type; Status moves use seven effect-based folders, including `UTILITY/OTHER` for unusual moves such as Mimic, Metronome, Transform, and Teleport. The lists come from Gen1Recomp's live registry rather than a duplicated move database, so all registered moves—including TM/HM moves—remain available and alphabetical.
+
+Only player-owned PokÃ©mon can progress above level 100. Their maximum is 255, every additional level costs the same EXP their growth curve required from 99 to 100, and level 255 stops accumulating EXP. Use the `LEVEL` row on the DV page for direct editing. Wild encounters, trainer parties, and link play retain normal levels. `NO DRAWBACKS` skips player charge/recharge turns and prevents player self-KO; `INFINITE HP` also prevents Selfdestruct/Explosion from bypassing its protection.
 
 Select `FREEFLY` from an eligible party Pokémon outdoors. Press A to land; B remains dedicated to the selected `FLY BOOST` behavior. Water landing requires HM03 and, while `BADGE CHECK` is on, the SOULBADGE. Flight never starts during a link session, cannot enter doors or trigger ground encounters, and saving is refused until landing.
 

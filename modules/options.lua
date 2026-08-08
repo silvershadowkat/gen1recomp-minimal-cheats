@@ -87,6 +87,7 @@ local menuDefs = {
     return {
       toggle("INFINITE HP", "infinite_hp", false),
       toggle("INFINITE PP", "infinite_pp", false),
+      toggle("NO DRAWBACKS", "no_move_drawbacks", false),
       choice("EXP RATE", "exp_multiplier", shared.EXP_MULTIPLIERS, 1, multiplier),
       choice("DAMAGE", "damage_multiplier", shared.DAMAGE_MODES, 1, multiplier),
       toggle("ALWAYS HIT", "always_hit", false),

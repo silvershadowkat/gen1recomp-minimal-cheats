@@ -1,4 +1,4 @@
--- SilverShadow Mods 2.0.5
+-- SilverShadow Mods 2.1.0
 -- One entry point, deterministic module order, and one shared service table.
 
 return function(mod)
@@ -30,6 +30,7 @@ return function(mod)
     "modules/reusable_machines.lua",
 
     -- Contextual tools and Pokemon screens.
+    "modules/extended_levels.lua",
     "modules/moves_manager.lua",
     "modules/dv_ev_editor.lua",
     "modules/field_moves.lua",
@@ -52,5 +53,5 @@ return function(mod)
 
   for _, path in ipairs(modules) do loadModule(path, shared) end
   mod.exports.silvershadow = shared
-  mod.log:info("SilverShadow Mods 2.0.5 loaded")
+  mod.log:info("SilverShadow Mods 2.1.0 loaded")
 end

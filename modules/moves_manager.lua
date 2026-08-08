@@ -10,6 +10,30 @@ local HM_MOVES = {
   CUT = true, FLY = true, SURF = true, STRENGTH = true, FLASH = true,
 }
 
+local PHYSICAL_TYPES = {
+  "NORMAL", "FIGHTING", "POISON", "GROUND",
+  "FLYING", "BUG", "ROCK", "GHOST",
+}
+local SPECIAL_TYPES = {
+  "FIRE", "WATER", "ELECTRIC", "GRASS", "ICE", "PSYCHIC", "DRAGON",
+}
+local STATUS_GROUPS = {
+  { key = "major", label = "MAJOR STATUS" },
+  { key = "lower", label = "STAT LOWER" },
+  { key = "raise", label = "STAT RAISE" },
+  { key = "field", label = "FIELD/STATE" },
+  { key = "volatile", label = "TRAPS/TRIGGERS" },
+  { key = "recovery", label = "RECOVERY" },
+  { key = "utility", label = "UTILITY/OTHER" },
+}
+
+-- Base-power zero is not synonymous with Status in Gen I.  These effects
+-- still deal damage and belong under their physical/special type.
+local ZERO_POWER_DAMAGE = {
+  BIDE_EFFECT = true, COUNTER_EFFECT = true, SPECIAL_DAMAGE_EFFECT = true,
+  SUPER_FANG_EFFECT = true, OHKO_EFFECT = true,
+}
+
 local function clamp(value, minimum, maximum)
   value = math.floor(tonumber(value) or minimum)
   if value < minimum then return minimum end
@@ -89,7 +113,7 @@ end
 
 local function seedMemory(game, mon)
   local data = game.data
-  local level = clamp(mon.level or 1, 1, 100)
+  local level = clamp(mon.level or 1, 1, 255)
   local line = evolutionLine(game, mon.species)
 
   -- Reconstruct the natural move history from the evolution line. Gen I save
@@ -196,6 +220,83 @@ return function(mod, shared)
     return rows
   end
 
+  local function normalizedType(moveDef)
+    return tostring(moveDef and moveDef.type or "UNKNOWN"):gsub("_TYPE$", "")
+  end
+
+  local function isStatusMove(moveDef)
+    if not moveDef or (tonumber(moveDef.power) or 0) > 0 then return false end
+    if moveDef.fixedDamage ~= nil then return false end
+    return not ZERO_POWER_DAMAGE[moveDef.effect]
+  end
+
+  local function statusGroup(moveDef)
+    local effect = tostring(moveDef and moveDef.effect or "")
+    if effect:find("SLEEP", 1, true) or effect:find("POISON", 1, true)
+        or effect:find("PARALYZE", 1, true) then return "major" end
+    if effect:find("_DOWN", 1, true) then return "lower" end
+    if effect:find("_UP", 1, true) or effect == "FOCUS_ENERGY_EFFECT" then
+      return "raise"
+    end
+    if effect == "HEAL_EFFECT" or effect == "REST_EFFECT" then return "recovery" end
+    if effect:find("CONFUS", 1, true) or effect == "DISABLE_EFFECT"
+        or effect == "LEECH_SEED_EFFECT" then return "volatile" end
+    if effect == "SUBSTITUTE_EFFECT" or effect == "LIGHT_SCREEN_EFFECT"
+        or effect == "REFLECT_EFFECT" or effect == "MIST_EFFECT"
+        or effect == "HAZE_EFFECT" or effect == "TRANSFORM_EFFECT"
+        or effect == "CONVERSION_EFFECT" then return "field" end
+    return "utility"
+  end
+
+  local function moveBranch(moveDef)
+    if isStatusMove(moveDef) then return "status", statusGroup(moveDef) end
+    local moveType = normalizedType(moveDef)
+    for _, value in ipairs(PHYSICAL_TYPES) do
+      if moveType == value then return "physical", value end
+    end
+    for _, value in ipairs(SPECIAL_TYPES) do
+      if moveType == value then return "special", value end
+    end
+    -- A content mod may add a non-Gen-I type.  It must remain reachable rather
+    -- than disappearing from ALL MOVES, so the explicit catch-all owns it.
+    return "status", "utility"
+  end
+
+  local function allMoveRows(game, section, group)
+    local rows = {}
+    for id, def in pairs(game.data.moves or {}) do
+      local moveSection, moveGroup = moveBranch(def)
+      if moveSection == section and moveGroup == group then
+        rows[#rows + 1] = { id = id, name = def.name or id }
+      end
+    end
+    table.sort(rows, function(a, b)
+      local an, bn = tostring(a.name):upper(), tostring(b.name):upper()
+      if an == bn then return tostring(a.id) < tostring(b.id) end
+      return an < bn
+    end)
+    return rows
+  end
+
+  local function coverage(game)
+    local seen, total, indexed = {}, 0, 0
+    for _ in pairs(game.data.moves or {}) do total = total + 1 end
+    local function count(section, group)
+      for _, row in ipairs(allMoveRows(game, section, group)) do
+        indexed = indexed + 1
+        seen[row.id] = (seen[row.id] or 0) + 1
+      end
+    end
+    for _, moveType in ipairs(PHYSICAL_TYPES) do count("physical", moveType) end
+    for _, moveType in ipairs(SPECIAL_TYPES) do count("special", moveType) end
+    for _, row in ipairs(STATUS_GROUPS) do count("status", row.key) end
+    for id in pairs(game.data.moves or {}) do
+      if seen[id] ~= 1 then return false, id, total, indexed end
+    end
+    if indexed ~= total then return false, "COUNT_MISMATCH", total, indexed end
+    return true, nil, total, indexed
+  end
+
   local Manager = {}
   Manager.__index = Manager
   Manager.isOpaque = true
@@ -212,6 +313,9 @@ return function(mod, shared)
       pool = {},
       poolIndex = 1,
       poolScroll = 0,
+      poolTitle = "LEARNED MOVES",
+      candidateBackMode = "pool",
+      allSection = nil,
       swapSlot = nil,
     }, Manager)
   end
@@ -234,16 +338,53 @@ return function(mod, shared)
     return self.pool[self.poolIndex]
   end
 
+  function Manager:openList(mode, title, rows)
+    self.mode = mode
+    self.poolTitle = title
+    self.pool = rows or {}
+    self.poolIndex = 1
+    self.poolScroll = 0
+  end
+
   function Manager:openPool()
     local current = self:currentMove()
     if current and HM_MOVES[current.id] then
       self.game.stack:push(TextBox.new(self.game, "HM techniques\ncan't be deleted!"))
       return
     end
-    self.pool = learnedRows(self.game, self.mon)
-    self.poolIndex = math.min(math.max(1, self.poolIndex), math.max(1, #self.pool))
-    self.poolScroll = 0
-    self.mode = "pool"
+    self:openList("pool", "LEARNED MOVES", learnedRows(self.game, self.mon))
+  end
+
+  function Manager:openAllSections()
+    self:openList("all_sections", "ALL MOVES", {
+      { key = "physical", name = "PHYSICAL" },
+      { key = "special", name = "SPECIAL" },
+      { key = "status", name = "STATUS" },
+    })
+  end
+
+  function Manager:openAllGroups(section)
+    self.allSection = section
+    local rows, title = {}, "STATUS GROUPS"
+    if section == "physical" or section == "special" then
+      title = section == "physical" and "PHYSICAL TYPES" or "SPECIAL TYPES"
+      local source = section == "physical" and PHYSICAL_TYPES or SPECIAL_TYPES
+      for _, key in ipairs(source) do rows[#rows + 1] = { key = key, name = key } end
+    else
+      for _, row in ipairs(STATUS_GROUPS) do
+        rows[#rows + 1] = { key = row.key, name = row.label }
+      end
+    end
+    self:openList("all_groups", title, rows)
+  end
+
+  function Manager:openAllMoves(group)
+    local label = group
+    for _, row in ipairs(STATUS_GROUPS) do
+      if row.key == group then label = row.label break end
+    end
+    self:openList("all_moves", fit(label .. " MOVES", 13),
+      allMoveRows(self.game, self.allSection, group))
   end
 
   function Manager:showCurrentDetail()
@@ -325,15 +466,43 @@ return function(mod, shared)
     elseif input:wasPressed("a") then
       if candidate then self:teachCandidate() else self:openPool() end
     elseif input:wasPressed("b") then
-      self.mode = candidate and "pool" or "known"
+      self.mode = candidate and self.candidateBackMode or "known"
       self.detailPage = 1
+    end
+  end
+
+  function Manager:chooseList()
+    local entry = self:candidate()
+    if not entry then return end
+    if self.mode == "all_sections" then
+      self:openAllGroups(entry.key)
+    elseif self.mode == "all_groups" then
+      self:openAllMoves(entry.key)
+    else
+      self.candidateBackMode = self.mode
+      self.detailPage = 1
+      self.mode = "candidate_detail"
+    end
+  end
+
+  function Manager:backList()
+    if self.mode == "all_moves" then
+      self:openAllGroups(self.allSection)
+    elseif self.mode == "all_groups" then
+      self:openAllSections()
+    else
+      self.mode = self:currentMove() and "current_detail" or "known"
     end
   end
 
   function Manager:updatePool(input)
     local n = #self.pool
     if n == 0 then
-      if input:wasPressed("a") or input:wasPressed("b") then self.mode = "known" end
+      if input:wasPressed("select") then
+        if self.mode == "pool" then self:openAllSections() else self:openPool() end
+      elseif input:wasPressed("a") or input:wasPressed("b") then
+        self:backList()
+      end
       return
     end
     if input:wasPressed("up") then
@@ -344,11 +513,12 @@ return function(mod, shared)
       self.poolIndex = math.max(1, self.poolIndex - 6)
     elseif input:wasPressed("right") then
       self.poolIndex = math.min(n, self.poolIndex + 6)
+    elseif input:wasPressed("select") then
+      if self.mode == "pool" then self:openAllSections() else self:openPool() end
     elseif input:wasPressed("a") then
-      self.detailPage = 1
-      self.mode = "candidate_detail"
+      self:chooseList()
     elseif input:wasPressed("b") then
-      self.mode = self:currentMove() and "current_detail" or "known"
+      self:backList()
     end
     if self.poolIndex < self.poolScroll + 1 then self.poolScroll = self.poolIndex - 1 end
     if self.poolIndex > self.poolScroll + 6 then self.poolScroll = self.poolIndex - 6 end
@@ -358,7 +528,8 @@ return function(mod, shared)
     local input = self.game.input
     if self.mode == "known" then
       self:updateKnown(input)
-    elseif self.mode == "pool" then
+    elseif self.mode == "pool" or self.mode == "all_sections"
+        or self.mode == "all_groups" or self.mode == "all_moves" then
       self:updatePool(input)
     elseif self.mode == "candidate_detail" then
       self:updateDetail(input, true)
@@ -417,11 +588,11 @@ return function(mod, shared)
   end
 
   function Manager:drawPool()
-    Font.draw("LEARNED MOVES", 8, 8)
+    Font.draw(fit(self.poolTitle or "MOVES", 13), 8, 8)
     Font.draw(("%d/%d"):format(math.min(self.poolIndex, #self.pool), #self.pool), 120, 8)
     if #self.pool == 0 then
-      Font.draw("No other learned", 16, 56)
-      Font.draw("moves available.", 16, 72)
+      Font.draw("No moves here.", 16, 56)
+      Font.draw(self.mode == "pool" and "SELECT: ALL MOVES" or "SELECT: LEARNED", 8, 128)
       Font.draw("A/B BACK", 8, 136)
       return
     end
@@ -433,10 +604,14 @@ return function(mod, shared)
       if i == self.poolIndex then Font.drawCode(Theme.cursor, 8, y) end
       Font.draw(fit(entry.name, 17), 16, y)
     end
-    local candidate = self:candidate()
-    local def = candidate and self.game.data.moves[candidate.id]
-    Font.draw("TYPE " .. fit(typeName(def), 10), 8, 128)
-    Font.draw("A DETAILS B BACK", 8, 136)
+    if self.mode == "pool" then
+      Font.draw("A DETAILS SEL:ALL", 8, 128)
+    elseif self.mode == "all_moves" then
+      Font.draw("A DETAILS SEL:LEARN", 8, 128)
+    else
+      Font.draw("A OPEN  SEL:LEARN", 8, 128)
+    end
+    Font.draw("B BACK", 8, 136)
   end
 
   function Manager:drawDetail(moveId, moveInst, candidate)
@@ -509,7 +684,8 @@ return function(mod, shared)
 
     if self.mode == "known" then
       self:drawKnown()
-    elseif self.mode == "pool" then
+    elseif self.mode == "pool" or self.mode == "all_sections"
+        or self.mode == "all_groups" or self.mode == "all_moves" then
       self:drawPool()
     elseif self.mode == "candidate_detail" then
       local candidate = self:candidate()
@@ -541,6 +717,11 @@ return function(mod, shared)
       state.poolScroll = state.poolIndex - 6
     end
     state.poolScroll = math.max(0, math.min(state.poolScroll, math.max(0, n - 6)))
+  end
+
+  local function isListMode(mode)
+    return mode == "pool" or mode == "all_sections"
+      or mode == "all_groups" or mode == "all_moves"
   end
 
   local function modernKnownModel(state)
@@ -578,22 +759,30 @@ return function(mod, shared)
   local function modernPoolModel(state)
     local rows = {}
     for _, entry in ipairs(state.pool or {}) do
-      local def = state.game.data.moves[entry.id]
+      local def = entry.id and state.game.data.moves[entry.id] or nil
       rows[#rows + 1] = {
         label = entry.name or entry.id,
-        value = typeName(def),
+        value = def and typeName(def) or "OPEN",
         enabled = true,
       }
     end
+    local footer
+    if #rows == 0 then
+      footer = { "NO MOVES HERE", "SELECT SWITCH", "A/B BACK" }
+    elseif state.mode == "pool" then
+      footer = { "A DETAILS", "SELECT ALL MOVES", "B BACK" }
+    elseif state.mode == "all_moves" then
+      footer = { "A DETAILS", "SELECT LEARNED", "B BACK" }
+    else
+      footer = { "A OPEN", "SELECT LEARNED", "B BACK" }
+    end
     return {
-      title = ("REMEMBERED MOVES %d/%d"):format(
+      title = ("%s %d/%d"):format(state.poolTitle or "MOVES",
         math.min(state.poolIndex or 1, #rows), #rows),
       rows = rows,
       index = math.max(1, math.min(math.max(1, #rows), state.poolIndex or 1)),
       scroll = math.max(0, state.poolScroll or 0),
-      footer = #rows > 0
-        and { "A DETAILS", "L/R PAGE", "B BACK" }
-        or { "NO OTHER LEARNED MOVES", "A/B BACK" },
+      footer = footer,
     }
   end
 
@@ -683,7 +872,7 @@ return function(mod, shared)
 
   local function modernModel(state)
     if state.mode == "known" then return modernKnownModel(state) end
-    if state.mode == "pool" then return modernPoolModel(state) end
+    if isListMode(state.mode) then return modernPoolModel(state) end
     return modernDetailModel(state, state.mode == "candidate_detail")
   end
 
@@ -704,7 +893,7 @@ return function(mod, shared)
               if index < 1 or index > 4 then return false end
               state.slot = index
               return true
-            elseif state.mode == "pool" then
+            elseif isListMode(state.mode) then
               if not state.pool[index] then return false end
               state.poolIndex = index
               syncModernPool(state)
@@ -723,12 +912,11 @@ return function(mod, shared)
                 state:showCurrentDetail()
               end
               return true
-            elseif state.mode == "pool" then
+            elseif isListMode(state.mode) then
               if index > 0 and state.pool[index] then state.poolIndex = index end
               if not state:candidate() then return false end
               syncModernPool(state)
-              state.detailPage = 1
-              state.mode = "candidate_detail"
+              state:chooseList()
               return true
             elseif state.mode == "candidate_detail" then
               state:teachCandidate()
@@ -743,7 +931,7 @@ return function(mod, shared)
             if state.mode == "known" then
               state.slot = state.slot > 1 and state.slot - 1 or 4
               return true
-            elseif state.mode == "pool" and #state.pool > 0 then
+            elseif isListMode(state.mode) and #state.pool > 0 then
               state.poolIndex = state.poolIndex > 1
                 and state.poolIndex - 1 or #state.pool
               syncModernPool(state)
@@ -755,7 +943,7 @@ return function(mod, shared)
             if state.mode == "known" then
               state.slot = state.slot < 4 and state.slot + 1 or 1
               return true
-            elseif state.mode == "pool" and #state.pool > 0 then
+            elseif isListMode(state.mode) and #state.pool > 0 then
               state.poolIndex = state.poolIndex < #state.pool
                 and state.poolIndex + 1 or 1
               syncModernPool(state)
@@ -764,7 +952,7 @@ return function(mod, shared)
             return false
           end,
           left = function(_, state)
-            if state.mode == "pool" and #state.pool > 0 then
+            if isListMode(state.mode) and #state.pool > 0 then
               state.poolIndex = math.max(1, state.poolIndex - 6)
               syncModernPool(state)
               return true
@@ -776,7 +964,7 @@ return function(mod, shared)
             return false
           end,
           right = function(_, state)
-            if state.mode == "pool" and #state.pool > 0 then
+            if isListMode(state.mode) and #state.pool > 0 then
               state.poolIndex = math.min(#state.pool, state.poolIndex + 6)
               syncModernPool(state)
               return true
@@ -794,10 +982,10 @@ return function(mod, shared)
               else
                 state.game.stack:pop()
               end
-            elseif state.mode == "pool" then
-              state.mode = state:currentMove() and "current_detail" or "known"
+            elseif isListMode(state.mode) then
+              state:backList()
             elseif state.mode == "candidate_detail" then
-              state.mode = "pool"
+              state.mode = state.candidateBackMode or "pool"
               state.detailPage = 1
             else
               state.mode = "known"
@@ -874,6 +1062,12 @@ return function(mod, shared)
 
   mod.events:on("game.ready", function()
     ensureModernUiAdapter()
+    local game = shared.game
+    if game then
+      local ok, missing, total = coverage(game)
+      assert(ok, "ALL MOVES coverage failed for " .. tostring(missing))
+      mod.log:info("All Moves indexed %d registered moves", total)
+    end
   end)
 
   -- Register immediately when load order permits it; game.ready and screen
@@ -892,4 +1086,12 @@ return function(mod, shared)
   end
   mod.exports.replaceMove = applyReplacement
   mod.exports.maxPP = maxPP
+  mod.exports.allMoves = {
+    branch = moveBranch,
+    rows = allMoveRows,
+    coverage = coverage,
+    physicalTypes = PHYSICAL_TYPES,
+    specialTypes = SPECIAL_TYPES,
+    statusGroups = STATUS_GROUPS,
+  }
 end

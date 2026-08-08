@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 - 2026-08-07
 
 ### Added
 
@@ -8,6 +8,9 @@
 - Added `FLY BOOST`, `FLY HEIGHT`, `TRAINER SIGHT`, `STORY GATES`, and `BADGE CHECK` to Movement. Flight speed uses the existing shared `MOVE BOOST` multiplier and OFF/ON/HOLD behavior; no SELECT shortcut, whistle, or gift Pokémon is included.
 - Added travel-aware follower formations. The trainer rides the selected flight or SURF mount; Flying types fly, Psychic/Ghost types hover, and Water/SURF-capable followers swim after HM03 is obtained. Ground-only followers temporarily return to their Poké Balls and the exact configured pack returns on safe land.
 - Added per-species surf mounts for actual SURF-knowing party members while retaining the normal engine surf sprite for HM-device fallback.
+- Added `ALL MOVES` to the party Move Editor. SELECT switches between remembered moves and the complete live move registry; damaging moves are grouped by Gen I Physical/Special type and Status moves by Major Status, Stat Lower, Stat Raise, Field/State, Traps/Triggers, Recovery, or Utility/Other. Every registered move is indexed exactly once and each final list is alphabetical.
+- Added player-owned levels 101 through 255. Battle EXP and Rare Candy continue leveling normally, every post-100 level uses the species' 99-to-100 EXP requirement, wild/trainer PokÃ©mon remain unchanged, and the DV/EV Editor now includes a direct `LEVEL` row.
+- Added `NO DRAWBACKS` to Battle options. Player charge moves resolve immediately, Hyper Beam-style recharge is removed, and self-KO moves do not faint the user. `INFINITE HP` also independently protects the player from Selfdestruct and Explosion.
 
 ### Fixed
 

@@ -19,6 +19,8 @@ local DV_ROWS = {
   { key = "special", label = "SPC" },
 }
 
+local LEVEL_ROW = { key = "level", label = "LEVEL" }
+
 local function clampInteger(value, minimum, maximum)
   value = math.floor(tonumber(value) or minimum)
   if value < minimum then return minimum end
@@ -109,11 +111,14 @@ return function(mod, shared)
   end
 
   function Editor:rowCount()
-    return self.page == 1 and #DV_ROWS or #STAT_ROWS
+    return self.page == 1 and (#DV_ROWS + 1) or #STAT_ROWS
   end
 
   function Editor:selectedRow()
-    if self.page == 1 then return DV_ROWS[self.row] end
+    if self.page == 1 then
+      if self.row == 1 then return LEVEL_ROW end
+      return DV_ROWS[self.row - 1]
+    end
     return STAT_ROWS[self.row]
   end
 
@@ -125,7 +130,11 @@ return function(mod, shared)
   function Editor:startEdit()
     local row = self:selectedRow()
     if not row then return end
-    if self.page == 1 then
+    if row.key == "level" then
+      self.editValue = clampInteger(self.mon.level, 1, 255)
+      self.editWidth = 3
+      self.editMax = 255
+    elseif self.page == 1 then
       self.editValue = clampInteger(self.mon.dvs[row.key], 0, 15)
       self.editWidth = 2
       self.editMax = 15
@@ -146,7 +155,13 @@ return function(mod, shared)
   function Editor:applyEdit()
     local row = self:selectedRow()
     if not row then return end
-    if self.page == 1 then
+    if row.key == "level" then
+      local levels = shared.extendedLevels
+      if levels and levels.setLevel then
+        levels.setLevel(self.game, self.mon,
+          clampInteger(self.editValue, 1, levels.max or 255), true)
+      end
+    elseif self.page == 1 then
       self.mon.dvs[row.key] = clampInteger(self.editValue, 0, 15)
       self.mon.dvs.hp = derivedHpDv(self.mon.dvs)
     else
@@ -206,19 +221,29 @@ return function(mod, shared)
   end
 
   function Editor:drawDvPage()
-    Font.draw("HP  DV", 16, 40)
-    Font.draw(("%02d"):format(self.mon.dvs.hp or 0), 72, 40)
-    Font.draw(("STAT %3d"):format(actualStat(self.mon, "hp")), 96, 40)
+    local level = self.mon.level or 1
+    if self.editing and self.row == 1 then level = self.editValue end
+    if self.row == 1 then Font.drawCode(Theme.cursor, 8, 40) end
+    Font.draw("LEVEL", 16, 40)
+    Font.draw(padded(level, 3), 72, 40)
+    if self.editing and self.row == 1 then drawDigitCursor(72, 40, self.editDigit) end
+
+    Font.draw("HP DV", 16, 54)
+    Font.draw(("%02d"):format(self.mon.dvs.hp or 0), 72, 54)
+    Font.draw(("S %4d"):format(actualStat(self.mon, "hp")), 104, 54)
 
     for i, row in ipairs(DV_ROWS) do
-      local y = 56 + (i - 1) * 16
+      local editorRow = i + 1
+      local y = 68 + (i - 1) * 14
       local value = self.mon.dvs[row.key] or 0
-      if self.editing and self.row == i then value = self.editValue end
-      if self.row == i then Font.drawCode(Theme.cursor, 8, y) end
+      if self.editing and self.row == editorRow then value = self.editValue end
+      if self.row == editorRow then Font.drawCode(Theme.cursor, 8, y) end
       Font.draw(row.label .. " DV", 16, y)
       Font.draw(padded(value, 2), 72, y)
-      Font.draw(("STAT %3d"):format(actualStat(self.mon, row.key)), 96, y)
-      if self.editing and self.row == i then drawDigitCursor(72, y, self.editDigit) end
+      Font.draw(("S %4d"):format(actualStat(self.mon, row.key)), 104, y)
+      if self.editing and self.row == editorRow then
+        drawDigitCursor(72, y, self.editDigit)
+      end
     end
   end
 
@@ -262,6 +287,12 @@ return function(mod, shared)
   local function modernRows(state)
     local rows = {}
     if state.page == 1 then
+      local level = state.mon.level or 1
+      if state.editing and state.row == 1 then level = state.editValue end
+      rows[#rows + 1] = {
+        label = "LEVEL", value = ("%03d"):format(level),
+        marker = state.editing and state.row == 1 or nil, enabled = true,
+      }
       rows[#rows + 1] = {
         label = "HP DV",
         value = ("%02d   STAT %3d"):format(
@@ -270,17 +301,18 @@ return function(mod, shared)
       }
       for i, row in ipairs(DV_ROWS) do
         local value = state.mon.dvs[row.key] or 0
-        if state.editing and state.row == i then value = state.editValue end
+        local editorRow = i + 1
+        if state.editing and state.row == editorRow then value = state.editValue end
         local valueText = ("%02d   STAT %3d"):format(value,
           actualStat(state.mon, row.key))
-        if state.editing and state.row == i then
+        if state.editing and state.row == editorRow then
           valueText = valueText .. ("   DIGIT %d/%d"):format(
             state.editDigit or 1, state.editWidth or 2)
         end
         rows[#rows + 1] = {
           label = row.label .. " DV",
           value = valueText,
-          marker = state.editing and state.row == i or nil,
+          marker = state.editing and state.row == editorRow or nil,
           enabled = true,
         }
       end
@@ -310,7 +342,7 @@ return function(mod, shared)
     local name = state.mon.nickname or (def and def.name)
       or tostring(state.mon.species)
     local rows = modernRows(state)
-    local index = state.page == 1 and math.min(#rows, (state.row or 1) + 1)
+    local index = state.page == 1 and math.min(#rows, state.row or 1)
       or math.min(#rows, state.row or 1)
     return {
       title = (state.page == 1 and "DV 1/2 - " or "STAT EXP 2/2 - ")
@@ -339,8 +371,10 @@ return function(mod, shared)
             index = math.floor(tonumber(index) or 0)
             if state.editing then return index > 0 end
             if state.page == 1 then
-              -- Row 1 is the read-only derived HP DV; editable rows start at 2.
-              if index < 2 or index > #DV_ROWS + 1 then return false end
+              -- The derived HP DV is row 2; LEVEL and the four component
+              -- DVs are editable.
+              if index == 1 then state.row = 1 return true end
+              if index < 3 or index > #DV_ROWS + 2 then return false end
               state.row = index - 1
               return true
             end
@@ -352,11 +386,10 @@ return function(mod, shared)
             index = math.floor(tonumber(index) or 0)
             if not state.editing then
               if state.page == 1 then
-                if index >= 2 and index <= #DV_ROWS + 1 then
+                if index == 1 then state.row = 1
+                elseif index >= 3 and index <= #DV_ROWS + 2 then
                   state.row = index - 1
-                elseif index == 1 then
-                  return false
-                end
+                else return false end
               elseif index >= 1 and index <= #STAT_ROWS then
                 state.row = index
               end
