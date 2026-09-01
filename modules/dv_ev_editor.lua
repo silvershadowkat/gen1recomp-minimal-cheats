@@ -1,8 +1,10 @@
--- DV EV Editor for Gen1Recomp
+-- DV / Stat EXP editor for both engine generations.
 -- Adds a DV/EV page to the out-of-battle Pokemon party submenu.
 -- Generation I uses DVs (0..15) and Stat EXP (0..65535), not modern EVs.
 
 local Stats = require("src.pokemon.Stats")
+local generation = 1
+local Gen2Mon
 
 local STAT_ROWS = {
   { key = "hp",      label = "HP"  },
@@ -54,7 +56,15 @@ local function ensureMon(game, mon)
     mon.statExp[row.key] = clampInteger(mon.statExp[row.key], 0, 65535)
   end
 
-  Stats.ensure(game.data.pokemon[mon.species], mon)
+  local def = game.data.pokemon[mon.species]
+  if generation == 2 then
+    if def and (type(mon.stats) ~= "table" or mon.stats.hp == nil) then
+      mon.stats = Gen2Mon.stats(def.baseStats, mon.dvs, mon.level or 1,
+        mon.statExp)
+    end
+  else
+    Stats.ensure(def, mon)
+  end
 end
 
 local function recalculate(game, mon)
@@ -67,7 +77,12 @@ local function recalculate(game, mon)
   local missing = math.max(0, oldMax - oldHp)
 
   mon.dvs.hp = derivedHpDv(mon.dvs)
-  mon.stats = Stats.calc(def, mon.level or 1, mon.dvs, mon.statExp)
+  if generation == 2 then
+    mon.stats = Gen2Mon.stats(def.baseStats, mon.dvs, mon.level or 1,
+      mon.statExp)
+  else
+    mon.stats = Stats.calc(def, mon.level or 1, mon.dvs, mon.statExp)
+  end
 
   -- Match the game's level-up behavior: changing maximum HP preserves the
   -- amount of HP missing. A fainted Pokemon stays fainted.
@@ -79,6 +94,9 @@ local function recalculate(game, mon)
 end
 
 local function actualStat(mon, key)
+  if generation == 2 and key == "special" then
+    return mon.stats and mon.stats.specialAttack or 0
+  end
   return mon.stats and mon.stats[key] or 0
 end
 
@@ -87,6 +105,8 @@ local function padded(value, width)
 end
 
 return function(mod, shared)
+  generation = shared.generation or 1
+  if generation == 2 then Gen2Mon = require("src.battle.gen2.Mon") end
   local Font = mod.ui.Font
   local Theme = mod.ui.Theme
 
@@ -131,9 +151,10 @@ return function(mod, shared)
     local row = self:selectedRow()
     if not row then return end
     if row.key == "level" then
-      self.editValue = clampInteger(self.mon.level, 1, 255)
+      local maximum = generation == 2 and 100 or 255
+      self.editValue = clampInteger(self.mon.level, 1, maximum)
       self.editWidth = 3
-      self.editMax = 255
+      self.editMax = maximum
     elseif self.page == 1 then
       self.editValue = clampInteger(self.mon.dvs[row.key], 0, 15)
       self.editWidth = 2
@@ -160,6 +181,9 @@ return function(mod, shared)
       if levels and levels.setLevel then
         levels.setLevel(self.game, self.mon,
           clampInteger(self.editValue, 1, levels.max or 255), true)
+      else
+        self.mon.level = clampInteger(self.editValue, 1,
+          generation == 2 and 100 or 255)
       end
     elseif self.page == 1 then
       self.mon.dvs[row.key] = clampInteger(self.editValue, 0, 15)

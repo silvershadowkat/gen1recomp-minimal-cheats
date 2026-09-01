@@ -1,13 +1,17 @@
 local mod = ...
 
 local M = {
-  version = "2.1.6",
+  version = "3.0.17",
   game = nil,
   linkBattleActive = false,
   startItems = {},
   partyDecorators = {},
   stepCallbacks = {},
 }
+
+local okVersion, GameVersion = pcall(require, "src.core.GameVersion")
+M.gameVersion = okVersion and GameVersion.get() or "red"
+M.generation = okVersion and GameVersion.generation(M.gameVersion) or 1
 
 M.EXP_MULTIPLIERS = { 1, 2, 4, 8, 10 }
 M.DAMAGE_MODES = { 1, 2, 4, 8, 10, "OHKO" }
@@ -56,7 +60,7 @@ function M.cycle(key, values, default)
 end
 
 function M.isLinkBattle(battle)
-  return battle ~= nil and battle.kind == "link"
+  return battle ~= nil and (battle.kind == "link" or battle.linkBattle == true)
 end
 
 function M.online()
@@ -114,7 +118,8 @@ end
 function M.healPokemon(game, mon)
   if not mon then return end
   local ok, Pokemon = pcall(require, "src.pokemon.Pokemon")
-  if ok and Pokemon and type(Pokemon.heal) == "function" then
+  if M.generation == 1 and ok and Pokemon
+      and type(Pokemon.heal) == "function" then
     Pokemon.heal(mon)
     return
   end

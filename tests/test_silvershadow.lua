@@ -1,4 +1,6 @@
-package.path = "references/gen1recomp/?.lua;references/gen1recomp/?/init.lua;" .. package.path
+local engineRoot = os.getenv("SILVERSHADOW_ENGINE") or "../engine"
+package.path = engineRoot .. "/?.lua;" .. engineRoot .. "/?/init.lua;"
+  .. package.path
 
 local passed = 0
 local function check(value, message)
@@ -90,7 +92,59 @@ foundMods.DRAMATIC_SHAPE = { exports = { lib = {
   end,
 } } }
 install("modules/display.lua", mod, shared)
+install("modules/trigger_buttons.lua", mod, shared)
+install("modules/gen2_zoom_match.lua", mod, shared)
 install("modules/options.lua", mod, shared)
+
+-- Android reports L2/R2 as axes. The compatibility bridge turns each
+-- threshold crossing into exactly one bindable synthetic button edge.
+local triggerEdges = {}
+local triggerGame = {
+  gamepadpressed = function(_, _, button)
+    triggerEdges[#triggerEdges + 1] = "down:" .. button
+  end,
+  gamepadreleased = function(_, _, button)
+    triggerEdges[#triggerEdges + 1] = "up:" .. button
+  end,
+}
+check(not shared.triggerAxis(triggerGame, nil, "leftx", 1),
+  "ordinary stick axes stay on the engine path")
+check(shared.triggerAxis(triggerGame, nil, "triggerleft", 0.8),
+  "left trigger axis is claimed")
+shared.triggerAxis(triggerGame, nil, "triggerleft", 0.9)
+shared.triggerAxis(triggerGame, nil, "triggerleft", 0.1)
+shared.triggerAxis(triggerGame, nil, "triggerright", 0.8)
+shared.triggerAxis(triggerGame, nil, "triggerright", 0.1)
+eq(table.concat(triggerEdges, ","), "down:l2,up:l2,down:r2,up:r2",
+  "trigger axes produce one L2/R2 press and release each")
+
+-- Gen 2 uses logical pixels on high-DPI Android. One OUT level must subtract
+-- one physical pixel, not one whole logical (two-physical-pixel) unit.
+eq(shared.gen2MatchedZoomScale(3, -1, 2, 2), 2.5,
+  "Gen 2 OUT1 matches Gen 1 physical zoom on a 2x display")
+eq(shared.gen2MatchedZoomScale(3, 0, 2, 3), 3,
+  "Gen 2 FIT remains unchanged")
+eq(shared.gen2MatchedZoomScale(3, -1, 1, 2), 2,
+  "Desktop Gen 2 retains its original zoom ladder")
+
+local followerWorld = mod.exports.followersIntegration.worldFor
+local gen1World, gen2World = {}, {}
+eq(followerWorld({ overworld = gen1World }), gen1World,
+  "Follower integration retains Gen 1 overworld resolution")
+eq(followerWorld({ world = gen2World }), gen2World,
+  "Follower integration resolves the real Gen 2 world")
+local activationEventAllowed = mod.exports.followersIntegration.activationEventAllowed
+local savedGeneration = shared.generation
+shared.generation = 1
+check(activationEventAllowed("game.ready") and activationEventAllowed("map.entered")
+    and activationEventAllowed("world.stepped"),
+  "Gen 1 follower activation timing remains unchanged")
+shared.generation = 2
+check(not activationEventAllowed("game.ready")
+    and not activationEventAllowed("map.entered")
+    and activationEventAllowed("world.stepped"),
+  "Gen 2 follower activation waits for a completed world step")
+shared.generation = savedGeneration
 
 -- The item editor is driven by live item records, preserves their native ROM
 -- order, and rejects every machine, key item, badge, and placeholder slot.
@@ -155,13 +209,30 @@ eq(itemGame.save.inventory.POTION, 42,
 shared.linkBattleActive = false
 check(itemTools.addQuantity(itemGame, "bag", "ESCAPE_ROPE", 1),
   "Bag setup can add a second native item")
+check(itemTools.addQuantity(itemGame, "bag", "POKE_BALL", 3),
+  "Battle-bag setup can add a native Poke Ball stack")
 local stackItems = {}
 itemGame.stack = {
   push = function(_, value) stackItems[#stackItems + 1] = value end,
   pop = function() return table.remove(stackItems) end,
   top = function() return stackItems[#stackItems] end,
 }
+local forwardedPad
+itemGame.input = {
+  gamepadpressed = function(_, _, button) forwardedPad = button end,
+  wasPressed = function() return false end,
+}
 local bagEditor = screens.BagMenu.new(itemGame, {})
+bagEditor:onGamepadPressed("rightshoulder")
+eq(bagEditor.title, "MEDICINE",
+  "Blue field bag L/R shoulder changes the separated pocket")
+check(bagEditor.items[1] and bagEditor.items[1].value == "POTION",
+  "Blue field bag keeps live inventory visible after a shoulder pocket change")
+bagEditor:onGamepadPressed("leftshoulder")
+eq(bagEditor.title, "ITEMS", "Blue field bag L shoulder returns one pocket")
+bagEditor:onGamepadPressed("b")
+eq(forwardedPad, "b",
+  "Blue field bag forwards unclaimed controller buttons to normal Input")
 bagEditor.onChoose(bagEditor.items[1], bagEditor)
 local itemActions = itemGame.stack:top()
 local hasQuantity = false
@@ -169,6 +240,15 @@ for _, row in ipairs(itemActions.items) do
   if row.label == "QUANTITY" then hasQuantity = true end
 end
 check(hasQuantity, "An ordinary bag item's USE/TOSS menu adds QUANTITY")
+local battleBag = screens.BagMenu.new(itemGame, { battle = {} })
+local battleItems = {}
+for _, row in ipairs(battleBag.items) do
+  if row.value then battleItems[row.value] = true end
+end
+check(battleItems.POKE_BALL and battleItems.POTION and battleItems.ESCAPE_ROPE,
+  "Blue battle bag keeps the engine's complete inventory including Poke Balls")
+eq(battleBag.title, "ITEMS",
+  "Blue battle bag is not replaced by one separated field pocket")
 stackItems = {}
 local emptyPocketGame = {
   save = { inventory = {}, pcItems = {}, money = 0 },
@@ -211,11 +291,21 @@ check(integratedLabels["EDIT PC ITEMS"],
 local optionRows = hooks["ui.options.rows"](function(_, list) return list end,
   {}, { { id = "vanilla", label = "TEXT SPEED" } })
 eq(optionRows[1].id, "minimal_cheats", "SilverShadow heads normal Options")
+local groupedOptions = { view = {
+  { id = "group.speed" },
+  { id = "group.video" },
+  optionRows[1],
+  { id = "silvershadow_lcd:settings" },
+} }
+shared.promoteOptionsView(groupedOptions)
+eq(groupedOptions.view[1].id, "minimal_cheats",
+  "SilverShadow heads the grouped Options view")
+eq(groupedOptions.view[2].id, "silvershadow_lcd:settings",
+  "LCD follows SilverShadow in the grouped Options view")
 for _, id in ipairs({
   "SilverShadowOptions", "SilverShadowBattle", "SilverShadowCapture",
   "SilverShadowWorld", "SilverShadowHealing", "SilverShadowSupplies",
-  "SilverShadowMovement", "SilverShadowDisplay", "SilverShadowStorage",
-  "SilverShadowFollowers",
+  "SilverShadowMovement", "SilverShadowDisplay", "SilverShadowFollowers",
 }) do
   local def = screens[id]
   local menu = def.new({})
@@ -230,7 +320,13 @@ local captureLabels = labels("SilverShadowCapture")
 check(captureLabels["CATCH HEAL"], "Capture uses compact Catch Heal label")
 local healingLabels = labels("SilverShadowHealing")
 check(healingLabels["MAP HEAL"] and healingLabels["BATTLE HEAL"]
-  and healingLabels["BOX HEAL"], "Healing labels fit beside values")
+  and not healingLabels["BOX HEAL"],
+  "Healing keeps map/battle rows and retires Box Heal")
+local supplyLabels = labels("SilverShadowSupplies")
+check(supplyLabels["PC RARE CANDY"] and supplyLabels["BAG CURSOR WRAP"],
+  "Supplies keeps Rare Candy and Useful Bag cursor control")
+check(screens.SilverShadowStorage == nil,
+  "retired custom Storage options screen is absent")
 local displayLabels = labels("SilverShadowDisplay")
 check(displayLabels["CAUGHT ICON"] and displayLabels["MAP BANNERS"],
   "Display labels fit beside values")
@@ -462,15 +558,15 @@ package.loaded["src.render.Font"] = previousFont
 -- even though the internal mod id remains minimal_cheats.
 local ModUpdate = require("src.mods.ModUpdate")
 local release = assert(ModUpdate.parseRelease({
-  tag_name = "v2.1.6",
+  tag_name = "v3.0.13",
   assets = { {
-    name = "silvershadow-mods-v2.1.6.zip",
+    name = "silvershadow-mods-v3.0.13.zip",
     browser_download_url = "https://example.invalid/silvershadow.zip",
     size = 123,
   } },
 }, "minimal_cheats"))
-eq(release.version, "2.1.6", "Updater reads SilverShadow release version")
-eq(release.zip.name, "silvershadow-mods-v2.1.6.zip",
+eq(release.version, "3.0.13", "Updater reads SilverShadow release version")
+eq(release.zip.name, "silvershadow-mods-v3.0.13.zip",
   "Updater selects SilverShadow release ZIP")
 
 -- Existing cheat modes and link safeguards.
@@ -530,8 +626,13 @@ local function speed(state, factor, held, kind, player)
   saved[kind .. "_boost"] = state
   local avatar = player or { moving = true }
   avatar.freeFlying = kind == "fly" or nil
-  local ctx = { player = avatar, onBike = kind == "bike", surfing = kind == "surf",
+  local save = { party = { { species = "CATERPIE", hp = 10 } } }
+  local ctx = { player = avatar, save = save,
+    onBike = kind == "bike", surfing = kind == "surf",
     input = { isDown = function(_, key) return key == "b" and held end } }
+  shared.game = { save = save, overworld = {
+    player = avatar, scriptMoves = {}, runner = { isRunning = function() return false end },
+  } }
   return hooks["movement.speed"](function(frames) return frames end, 16, ctx), avatar
 end
 for _, kind in ipairs({ "foot", "bike", "surf", "fly" }) do
@@ -547,6 +648,24 @@ end
 local nonPlayer = { moving = true }
 local ctx = { player = false, input = { isDown = function() return true end } }
 eq(hooks["movement.speed"](function() return 16 end, 16, ctx), 16, "NPC untouched")
+local preStarter = { moving = true }
+shared.game = { save = { party = {} }, overworld = {
+  player = preStarter, scriptMoves = {}, runner = { isRunning = function() return false end },
+} }
+eq(hooks["movement.speed"](function() return 16 end, 16, {
+  player = preStarter, save = shared.game.save,
+  input = { isDown = function() return false end },
+}), 16, "Pre-starter movement keeps the vanilla clock")
+local scriptedPlayer = { moving = true }
+shared.game = { save = { party = { { species = "CATERPIE", hp = 10 } } },
+  overworld = {
+    player = scriptedPlayer, scriptMoves = { { entity = scriptedPlayer } },
+    runner = { isRunning = function() return false end },
+  } }
+eq(hooks["movement.speed"](function() return 16 end, 16, {
+  player = scriptedPlayer, save = shared.game.save,
+  input = { isDown = function() return false end },
+}), 16, "Hand-scripted movement keeps the vanilla clock")
 local boosted, avatar = speed("ON", 4, false, "foot")
 avatar.stepFramesCur = boosted
 emit("script.started")
@@ -580,6 +699,20 @@ local moveGame = { data = { pokemon = {
     effect = "PARALYZE_EFFECT", pp = 20 },
   METRONOME = { name = "Metronome", type = "NORMAL", power = 0,
     effect = "METRONOME_EFFECT", pp = 10 },
+  SOFTBOILED = { name = "Softboiled", type = "NORMAL", power = 0,
+    effect = "EFFECT_HEAL", pp = 10 },
+  MORNING_SUN = { name = "Morning Sun", type = "NORMAL", power = 0,
+    effect = "EFFECT_MORNING_SUN", pp = 5 },
+  HEAL_BELL = { name = "Heal Bell", type = "NORMAL", power = 0,
+    effect = "EFFECT_HEAL_BELL", pp = 5 },
+  REFLECT = { name = "Reflect", type = "PSYCHIC", power = 0,
+    effect = "EFFECT_REFLECT", pp = 20 },
+  RAIN_DANCE = { name = "Rain Dance", type = "WATER", power = 0,
+    effect = "EFFECT_RAIN_DANCE", pp = 5 },
+  BELLY_DRUM = { name = "Belly Drum", type = "NORMAL", power = 0,
+    effect = "EFFECT_BELLY_DRUM", pp = 10 },
+  MEAN_LOOK = { name = "Mean Look", type = "NORMAL", power = 0,
+    effect = "EFFECT_MEAN_LOOK", pp = 5 },
 } } }
 local butterfree = { species = "BUTTERFREE", level = 12, moves = {} }
 local learned = mod.exports.learnedMoves(moveGame, butterfree)
@@ -587,7 +720,7 @@ eq(table.concat(learned, ","), "TACKLE,STRING_SHOT,HARDEN,CONFUSION",
   "Butterfree remembers legitimate evolutionary-line moves")
 local allMoves = mod.exports.allMoves
 local covered, missing, total = allMoves.coverage(moveGame)
-check(covered and missing == nil and total == 8,
+check(covered and missing == nil and total == 15,
   "All Moves assigns every registered move exactly once")
 local physicalNormal = allMoves.rows(moveGame, "physical", "NORMAL")
 eq(table.concat((function()
@@ -606,6 +739,15 @@ eq(section .. "/" .. group, "status/major",
 section, group = allMoves.branch(moveGame.data.moves.METRONOME)
 eq(section .. "/" .. group, "status/utility",
   "Metronome remains reachable under Utility/Other")
+for id, wanted in pairs({
+  SOFTBOILED = "recovery", MORNING_SUN = "recovery",
+  HEAL_BELL = "recovery", REFLECT = "field", RAIN_DANCE = "field",
+  BELLY_DRUM = "raise", MEAN_LOOK = "volatile",
+}) do
+  section, group = allMoves.branch(moveGame.data.moves[id])
+  eq(section .. "/" .. group, "status/" .. wanted,
+    id .. " has its correct Gen 2 status group")
+end
 
 -- Player-owned levels extend cleanly through the byte-sized cap while using
 -- a constant 99->100 EXP step above level 100.

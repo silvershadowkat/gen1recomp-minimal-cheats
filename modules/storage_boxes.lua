@@ -99,8 +99,6 @@ return function(mod, shared)
   -- half of this screen that is NOT storage, and a screen that healed your
   -- active six for opening and closing it would be a Centre with extra
   -- steps.
-  local Pokemon = require("src.pokemon.Pokemon")
-
   local function healing()
     return shared.bool("box_heals", false)
   end
@@ -179,7 +177,7 @@ return function(mod, shared)
         for _, mon in ipairs(box) do
           -- guard rather than trust: a mon that arrived from a save written
           -- by an older engine may be missing the fields heal writes
-          pcall(Pokemon.heal, mon)
+          pcall(shared.healPokemon, game, mon)
         end
       end
     end
@@ -298,7 +296,8 @@ return function(mod, shared)
     -- exactly this.
     local function showStats()
       local mon = self.held and self.held.mon or list()[index()]
-      if mon then Screens.push(game, "SummaryMenu", mon) end
+      local id = shared.generation == 2 and "Gen2SummaryMenu" or "SummaryMenu"
+      if mon then Screens.push(game, id, mon) end
     end
 
     function self:update()

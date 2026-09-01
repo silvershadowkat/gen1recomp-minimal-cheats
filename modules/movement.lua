@@ -34,6 +34,35 @@ local function restore()
   end
 end
 
+local function hasParty(save)
+  for _, mon in ipairs((save and save.party) or {}) do
+    if type(mon) == "table" and type(mon.species) == "string"
+        and mon.species ~= "" then
+      return true
+    end
+  end
+  return false
+end
+
+local function scriptedMovement(ctx)
+  local game = shared.game
+  local ow = game and game.overworld
+  if not ow or (ow.player and ow.player ~= ctx.player) then return false end
+  local runner = ow.runner
+  if runner and type(runner.isRunning) == "function" then
+    local ok, running = pcall(runner.isRunning, runner)
+    if ok and running then return true end
+  end
+  return #(ow.scriptMoves or {}) > 0
+    or ow.emote ~= nil
+    or ow.transitioning == true
+    or ow.engaging == true
+    or ow.teleportOut ~= nil
+    or ow.flyAnim ~= nil
+    or ow.flyArrive ~= nil
+    or (ctx.player and ctx.player.inputLocked == true)
+end
+
 mod.events:on("script.started", restore)
 
 -- This is SilverShadow's single input.step owner. Other modules register
@@ -52,6 +81,17 @@ end)
 mod.hooks:wrap("movement.speed", function(next, frames, ctx)
   local base = tonumber(next(frames, ctx)) or WALK_FRAMES
   if shared.online() or type(ctx) ~= "table" or not ctx.player then return base end
+
+  -- The opening Oak/Elm escort uses hand-authored scriptMove callbacks rather
+  -- than ScriptRunner, so script.started never fires for it. Applying the
+  -- default foot boost there changes the movement clock those callbacks wait
+  -- on and can leave the overworld permanently input-locked at the starter
+  -- table. There is no useful boosted movement before a party exists anyway;
+  -- all scripted/transition movement must likewise retain its vanilla clock.
+  if not hasParty(ctx.save) or scriptedMovement(ctx) then
+    if tracked == ctx.player then restore() end
+    return base
+  end
 
   local state = stateFor(ctx)
   if state == "OFF" then return base end

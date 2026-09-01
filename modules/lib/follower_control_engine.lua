@@ -1,45 +1,42 @@
 -- Control / pack / trailer engine (ported from local PokePCFollowers 1.5.0).
--- hostMod = FOLLOWERS_EX; assetMod = PokePCFollowers_VoxelMerge (sprites).
--- NOTE: mod:find() returns {id, version, exports} — it does NOT include .path.
+-- hostMod owns the controls; assetMod is a separately installed sprite
+-- provider. No provider source or artwork is copied into SilverShadow.
 return function(hostMod, assetMod)
   local mod = hostMod
   local POKE_ID = (assetMod and assetMod.id) or "PokePCFollowers_VoxelMerge"
+  local provider = assetMod and assetMod.exports or nil
 
-  local function fsExists(path)
-    if type(path) ~= "string" or path == "" then return false end
-    local fs = love and love.filesystem
-    if not (fs and fs.getInfo) then return false end
-    local ok, info = pcall(fs.getInfo, path)
-    return ok and info ~= nil
-  end
-
-  local function resolveAssetRoot()
-    -- Full mod API (rare) may carry .path; find-handle does not.
-    if assetMod and type(assetMod.path) == "string" and assetMod.path ~= "" then
-      local probe = assetMod.path .. "/assets/sprites/follower_CHARMANDER.png"
-      if fsExists(probe) then return assetMod.path end
+  local function followerDefinition(species)
+    species = tostring(species or "CHARMANDER"):upper()
+    local resolve = provider and provider.resolveFollowerSprite
+    if type(resolve) == "function" then
+      local ok, def = pcall(resolve, { species = species })
+      if ok and type(def) == "table" and type(def.image) == "string" then
+        return def
+      end
     end
-    local hostPath = tostring(hostMod.path or "")
-    local candidates = {
-      -- Sibling of FOLLOWERS_EX under the same mods/ root.
-      hostPath:gsub("[^/\\]+$", POKE_ID),
-      "mods/" .. POKE_ID,
-    }
-    for _, root in ipairs(candidates) do
-      if root and root ~= "" and root ~= hostPath
-         and fsExists(root .. "/assets/sprites/follower_CHARMANDER.png") then
-        return root
+    local assetPath = provider and provider.assetPath
+    if type(assetPath) == "function" then
+      local ok, path = pcall(assetPath, species)
+      if ok and type(path) == "string" and path ~= "" then
+        return { image = path, frames = 6, walker = true, trueColor = true }
       end
     end
     return nil
   end
 
-  local assetRoot = resolveAssetRoot()
-  if not assetRoot then
-    error("ControlEngine: cannot find PokePC follower sprites (id="
+  local function followerPath(species)
+    local def = followerDefinition(species)
+    return def and def.image or nil
+  end
+
+  local providerProbe = followerDefinition("CHARMANDER")
+  if not providerProbe then
+    error("ControlEngine: installed sprite provider has no follower resolver (id="
       .. tostring(POKE_ID) .. ")", 0)
   end
-  print("[FOLLOWERS_EX] ControlEngine installing (assetRoot=" .. tostring(assetRoot) .. ")")
+  print("[FOLLOWERS_EX] ControlEngine installing with provider "
+    .. tostring(POKE_ID))
 
   local Game = require("src.core.Game")
   local PaletteFX = require("src.render.PaletteFX")
@@ -55,6 +52,15 @@ return function(hostMod, assetMod)
   local Stats = require("src.pokemon.Stats")
   local NPC = require("src.world.NPC")
   local Collision = require("src.world.Collision")
+  local controllerEnabled = true
+  local syncPhase = "not started"
+
+  -- game.ready supplies the real Game2 instance in Gold/Silver/Crystal,
+  -- whose live overworld is named `world`. The Gen 1 singleton and its Gen 2
+  -- compatibility facade use `overworld`, so accept both at this boundary.
+  local function worldFor(game)
+    return game and (game.overworld or game.world) or nil
+  end
 
   -- Same ledge test as stock PikachuFollower (two-cell hop over ledge tiles).
   local function ledgeStep(game, ow, cx, cy, dir)
@@ -138,6 +144,55 @@ return function(hostMod, assetMod)
     return controlMode(game) == "follow" and followerCount(game) <= 0
   end
 
+  -- A loaded save already has a settled party, but a new game does not. The
+  -- give-pokemon command inserts the starter before its nickname/script flow
+  -- has finished, leaving one frame where a party entry exists but the world
+  -- is still owned by the starter cutscene. Activating our custom controller
+  -- in that frame can rebuild follower NPCs inside PokePC's own spawn pass.
+  --
+  -- Latch once per save only after a usable party and an idle, topmost
+  -- overworld have both been observed. Once latched, ordinary NPC scripts and
+  -- dialogs must not make an established pack disappear.
+  local activatedSaves = setmetatable({}, { __mode = "k" })
+
+  local function hasUsableParty(game)
+    local party = game and game.save and game.save.party
+    if type(party) ~= "table" then return false end
+    for _, mon in ipairs(party) do
+      if type(mon) == "table" and type(mon.species) == "string"
+          and mon.species ~= "" then
+        return true
+      end
+    end
+    return false
+  end
+
+  local function mainScriptRunning(ow)
+    local runner = ow and ow.runner
+    if not (runner and type(runner.isRunning) == "function") then return false end
+    local ok, running = pcall(runner.isRunning, runner)
+    return ok and running == true
+  end
+
+  local function integrationReady(game, ow)
+    game = game or Game
+    local save = game and game.save
+    if type(save) ~= "table" then return false end
+    if activatedSaves[save] then return true end
+    ow = ow or worldFor(game)
+    if not (ow and ow.player and ow.map) or not hasUsableParty(game) then
+      return false
+    end
+    if mainScriptRunning(ow) then return false end
+    local stack = game.stack
+    if stack and type(stack.top) == "function" then
+      local ok, top = pcall(stack.top, stack)
+      if ok and top and top ~= ow then return false end
+    end
+    activatedSaves[save] = true
+    return true
+  end
+
   -- ------- Leader (party or box)
   local function clearLeader(game)
     if game and game.save then
@@ -147,7 +202,8 @@ return function(hostMod, assetMod)
   end
 
   local function bustLeaderVisual(game)
-    local player = game and game.overworld and game.overworld.player
+    local ow = worldFor(game)
+    local player = ow and ow.player
     if player then
       -- Force applyPlayerAsPokemon to rebuild after leader changes.
       player._pokepcControlSpecies = nil
@@ -321,7 +377,8 @@ return function(hostMod, assetMod)
   local function yellowStockFollowActive(game)
     if not GameVersion.isYellow() then return false end
     if controlMode(game) ~= "follow" then return false end
-    local player = game and game.overworld and game.overworld.player
+    local ow = worldFor(game)
+    local player = ow and ow.player
     if player and (player.freeFlying or player.surfing) then return false end
     local save = game and game.save
     return partyPikachuIndex(save) ~= nil
@@ -342,7 +399,7 @@ return function(hostMod, assetMod)
     if not GameVersion.isYellow() then return end
     local npc = findStockPikachu(ow)
     if not npc then return end
-    local path = assetRoot .. "/assets/sprites/follower_PIKACHU.png"
+    local path = followerPath("PIKACHU")
     local def = npc.sprite and npc.sprite.def
     if def and def.image == path and def.id == "SPRITE_PIKACHU" then
       npc._pokepcFollowerSpecies = "PIKACHU"
@@ -527,20 +584,16 @@ return function(hostMod, assetMod)
 
   -- ------- Sprites (must run during mod load; content freezes before mods.loaded)
   pcall(function()
+    local def = followerDefinition("CHARMANDER") or providerProbe
     mod.content.sprites:patch("SPRITE_PIKACHU", {
-      image = assetRoot .. "/assets/sprites/follower_CHARMANDER.png",
-      frames = 6,
-      walker = true,
-      trueColor = true,
+      image = def.image,
+      frames = def.frames or 6,
+      walker = def.walker ~= false,
+      trueColor = def.trueColor ~= false,
     })
   end)
 
   local followerImgCache = {}
-
-  local function followerPath(species)
-    return assetRoot .. "/assets/sprites/follower_"
-      .. tostring(species or "CHARMANDER") .. ".png"
-  end
 
   local travelSpriteCache = {}
   local function invalidateFollowerImageCache()
@@ -633,7 +686,11 @@ return function(hostMod, assetMod)
       return
     end
     local mon = getLeaderMon(game)
-    local species = mon and mon.species or "CHARMANDER"
+    if not (mon and type(mon.species) == "string" and mon.species ~= "") then
+      restorePlayerTrainerSprite(game, ow)
+      return
+    end
+    local species = mon.species
     local path = followerPath(species)
     local shiny = mon and Stats.isShiny and Stats.isShiny(mon.dvs)
     if not force and player._pokepcAsPokemon and player._pokepcControlSpecies == species
@@ -656,6 +713,7 @@ return function(hostMod, assetMod)
   end
 
   local function syncPlayerControlVisual(game, ow, force)
+    if not integrationReady(game, ow) then return end
     if isPokemonFront(game) then
       applyPlayerAsPokemon(game, ow, force)
     else
@@ -881,6 +939,7 @@ return function(hostMod, assetMod)
   local function syncTrailers(game, ow, opts)
     opts = opts or {}
     if not ow or not ow.player or not ow.map then return end
+    if not integrationReady(game, ow) then return end
     local mode = controlMode(game)
     local p = ow.player
     local traveling = p.freeFlying == true or p.surfing == true
@@ -1077,33 +1136,7 @@ return function(hostMod, assetMod)
   -- Stock PikachuFollower: only suppress when we are actively drawing trailers
   -- or the player IS the pokemon. Never leave the field with nobody when
   -- pack size is 0 in trainer-walk mode (fallback to stub/vanilla spawn).
-  local function captureUpvalue(fn, upvalueName)
-    if type(debug) ~= "table" or type(debug.getupvalue) ~= "function" then
-      return nil, nil
-    end
-    local i = 1
-    while true do
-      local name, val = debug.getupvalue(fn, i)
-      if not name then break end
-      if name == upvalueName then return i, val end
-      i = i + 1
-    end
-    return nil, nil
-  end
-
-  local function patchUpvalue(fn, upvalueName, newVal)
-    local idx = select(1, captureUpvalue(fn, upvalueName))
-    if idx and debug.setupvalue then
-      debug.setupvalue(fn, idx, newVal)
-      return true
-    end
-    return false
-  end
-
-  local _, prevShouldSpawn = captureUpvalue(PikachuFollower.onMapEntered, "shouldSpawn")
-  if not prevShouldSpawn then
-    _, prevShouldSpawn = captureUpvalue(PikachuFollower.update, "shouldSpawn")
-  end
+  local prevShouldSpawn
 
   local function removeStockPikachu(ow)
     if not ow then return end
@@ -1120,6 +1153,19 @@ return function(hostMod, assetMod)
   end
 
   local function newShouldSpawn(game, ow)
+    if not controllerEnabled then
+      return type(prevShouldSpawn) == "function" and prevShouldSpawn(game, ow)
+        or false
+    end
+    -- Before our controller is safe to activate, leave PokePC's standalone
+    -- behavior untouched. This is especially important during the starter
+    -- handoff: PokePC works there by itself; our pack rebuild must wait.
+    if not integrationReady(game, ow) then
+      if type(prevShouldSpawn) == "function" then
+        return prevShouldSpawn(game, ow)
+      end
+      return false
+    end
     if ow and ow.player and (ow.player.freeFlying or ow.player.surfing) then
       return false
     end
@@ -1146,12 +1192,17 @@ return function(hostMod, assetMod)
     return false
   end
 
-  patchUpvalue(PikachuFollower.update, "shouldSpawn", newShouldSpawn)
-  patchUpvalue(PikachuFollower.onMapEntered, "shouldSpawn", newShouldSpawn)
+  if type(PikachuFollower.setShouldSpawn) == "function" then
+    prevShouldSpawn = PikachuFollower.setShouldSpawn(newShouldSpawn)
+  else
+    mod.log:warn("PokePC provider did not install the public follower spawn seam")
+  end
 
   local origFollowerUpdate = PikachuFollower.update
   PikachuFollower.update = function(game, ow, ...)
     local result = origFollowerUpdate(game, ow, ...)
+    if not controllerEnabled then return result end
+    if not integrationReady(game, ow) then return result end
     if isPokemonFront(game) or isTrainerSolo(game) then
       pcall(removeStockPikachu, ow)
     end
@@ -1169,6 +1220,8 @@ return function(hostMod, assetMod)
   local origOnMap = PikachuFollower.onMapEntered
   PikachuFollower.onMapEntered = function(game, ow, opts)
     origOnMap(game, ow, opts)
+    if not controllerEnabled then return end
+    if not integrationReady(game, ow) then return end
     local mode = controlMode(game)
     -- Only strip stock when player-is-pokemon / pack owns the field.
     -- Yellow follow keeps stock PikachuFollower for talk.
@@ -1412,13 +1465,6 @@ return function(hostMod, assetMod)
     end
   end
 
-  PikachuFollower.starterInParty = function(save, needHealthy)
-    for _, mon in ipairs(save.party or {}) do
-      if not needHealthy or (mon.hp or 0) > 0 then return mon end
-    end
-    return nil
-  end
-
   local api = {
     version = "1.5.0-ex",
     controlMode = controlMode,
@@ -1440,8 +1486,24 @@ return function(hostMod, assetMod)
     _trailerCompositionDirty = compositionDirty,
     _travelFormation = travelFormation,
     _seedTravelFormation = seedFormationBehind,
+    _integrationReady = integrationReady,
+    syncPhase = function() return syncPhase end,
+    disable = function(game, ow)
+      controllerEnabled = false
+      if type(PikachuFollower.setShouldSpawn) == "function"
+          and type(prevShouldSpawn) == "function" then
+        PikachuFollower.setShouldSpawn(prevShouldSpawn)
+      end
+      pcall(removeTrailers, ow or worldFor(game))
+      pcall(restorePlayerTrainerSprite, game, ow or worldFor(game))
+      print("[FOLLOWERS_EX] expanded controller disabled; using PokePC fallback")
+    end,
     syncAll = function(game, ow)
+      if not controllerEnabled then return end
+      syncPhase = "integration readiness"
       invalidateFollowerImageCache()
+      if not integrationReady(game, ow) then return end
+      syncPhase = "trailer cleanup"
       if ow then pcall(removeTrailers, ow) end
       -- Yellow: keep party[1]=Pikachu / leader at party[2] after menu changes.
       if GameVersion.isYellow() and game and game.save
@@ -1461,22 +1523,22 @@ return function(hostMod, assetMod)
       if isPokemonFront(game) and ow and ow.player then
         ow.player._pokepcControlSpecies = nil -- force pokemon sprite rebuild
       end
+      syncPhase = "player visual"
       pcall(syncPlayerControlVisual, game, ow, true)
+      syncPhase = "stock follower ownership"
       if ow and (isPokemonFront(game) or isTrainerSolo(game)) then
         pcall(removeStockPikachu, ow)
       else
         pcall(forceYellowStockPikachuArt, ow)
       end
+      syncPhase = "trailer spawn"
       pcall(syncTrailers, game, ow, { mapEnter = true, catchUp = true })
+      syncPhase = "complete"
     end,
     _followersExControlEngine = true,
   }
   for k, v in pairs(api) do
     mod.exports[k] = v
-  end
-  if assetMod then
-    assetMod.exports = assetMod.exports or {}
-    for k, v in pairs(api) do assetMod.exports[k] = v end
   end
   -- Game.save may already exist during soft-reload; align immediately.
   pcall(alignSaveFromOptions, Game)

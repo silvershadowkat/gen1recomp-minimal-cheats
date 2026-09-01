@@ -8,3 +8,6 @@ references/
 work/
 __pycache__/
 *.pyc
+/options.lua
+/options.lua.bak
+/options.lua.tmp

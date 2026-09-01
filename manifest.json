@@ -1,9 +1,10 @@
 {
   "id": "minimal_cheats",
   "name": "SilverShadow Mods",
-  "version": "2.1.6",
+  "version": "3.0.17",
   "api": 2,
   "entry": "main.lua",
+  "games": ["gen1", "gen2"],
   "profile": "overhaul",
   "category": "MECHANIC",
   "github": "silvershadowkat/gen1recomp-minimal-cheats",
@@ -14,5 +15,5 @@
   "conflicts": ["free_fly"],
   "affects_link": false,
   "permissions": ["engine_internals"],
-  "description": "A modular single-player overhaul with cheats, all 151 encounters, storage, field tools, Free Fly, movement, display, and optional travel-aware followers. Gameplay changes are disabled during online/link PvP."
+  "description": "One six-game SilverShadow overhaul: the complete Gen 1 suite plus generation-safe battle cheats, Pokemon editors, storage, healing, and movement tools for Gen 2. Link/PvP changes stay disabled."
 }

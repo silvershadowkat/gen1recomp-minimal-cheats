@@ -8,14 +8,16 @@ local MEMORY_FIELD = "movesManagerMemory"
 
 local HM_MOVES = {
   CUT = true, FLY = true, SURF = true, STRENGTH = true, FLASH = true,
+  WHIRLPOOL = true, WATERFALL = true,
 }
 
 local PHYSICAL_TYPES = {
   "NORMAL", "FIGHTING", "POISON", "GROUND",
-  "FLYING", "BUG", "ROCK", "GHOST",
+  "FLYING", "BUG", "ROCK", "GHOST", "STEEL",
 }
 local SPECIAL_TYPES = {
   "FIRE", "WATER", "ELECTRIC", "GRASS", "ICE", "PSYCHIC", "DRAGON",
+  "DARK",
 }
 local STATUS_GROUPS = {
   { key = "major", label = "MAJOR STATUS" },
@@ -26,6 +28,36 @@ local STATUS_GROUPS = {
   { key = "recovery", label = "RECOVERY" },
   { key = "utility", label = "UTILITY/OTHER" },
 }
+
+-- Effect names are mirrored between the Gen 1 (`HEAL_EFFECT`) and Gen 2
+-- (`EFFECT_HEAL`) extractors. Normalize both spellings before grouping so the
+-- complete six-game catalogue follows the move's actual purpose.
+local RECOVERY_EFFECTS = {
+  HEAL = true, REST = true, MORNING_SUN = true, SYNTHESIS = true,
+  MOONLIGHT = true, PAIN_SPLIT = true, HEAL_BELL = true,
+}
+local VOLATILE_EFFECTS = {
+  CONFUSE = true, DISABLE = true, LEECH_SEED = true, ENCORE = true,
+  SPITE = true, DESTINY_BOND = true, MEAN_LOOK = true, NIGHTMARE = true,
+  PERISH_SONG = true, ATTRACT = true, SWAGGER = true,
+}
+local FIELD_EFFECTS = {
+  SUBSTITUTE = true, LIGHT_SCREEN = true, REFLECT = true, MIST = true,
+  HAZE = true, RESET_STATS = true, TRANSFORM = true, CONVERSION = true,
+  CONVERSION2 = true, PROTECT = true, ENDURE = true, SPIKES = true,
+  FORESIGHT = true, SAFEGUARD = true, SANDSTORM = true, RAIN_DANCE = true,
+  SUNNY_DAY = true, LOCK_ON = true,
+}
+local RAISE_EFFECTS = {
+  FOCUS_ENERGY = true, BELLY_DRUM = true, CURSE = true,
+  PSYCH_UP = true, DEFENSE_CURL = true,
+}
+
+local function normalizedEffect(moveDef)
+  local effect = tostring(moveDef and moveDef.effect or "")
+  effect = effect:gsub("^EFFECT_", ""):gsub("_EFFECT$", "")
+  return effect
+end
 
 -- Base-power zero is not synonymous with Status in Gen I.  These effects
 -- still deal damage and belong under their physical/special type.
@@ -88,9 +120,10 @@ local function reverseEvolutions(game)
   local reverse = {}
   for speciesId, def in pairs(game.data.pokemon or {}) do
     for _, evo in ipairs(def.evolutions or {}) do
-      if evo.species then
-        reverse[evo.species] = reverse[evo.species] or {}
-        reverse[evo.species][#reverse[evo.species] + 1] = speciesId
+      local evolvedSpecies = evo.species or evo.into
+      if evolvedSpecies then
+        reverse[evolvedSpecies] = reverse[evolvedSpecies] or {}
+        reverse[evolvedSpecies][#reverse[evolvedSpecies] + 1] = speciesId
       end
     end
   end
@@ -116,15 +149,15 @@ local function seedMemory(game, mon)
   local level = clamp(mon.level or 1, 1, 255)
   local line = evolutionLine(game, mon.species)
 
-  -- Reconstruct the natural move history from the evolution line. Gen I save
-  -- data does not record when evolution happened, so this is deliberately a
+  -- Reconstruct the natural move history from the evolution line. Save data
+  -- does not record when evolution happened, so this is deliberately a
   -- generous reconstruction: every natural move in the line up to the current
   -- level is considered remembered.
   for _, speciesId in ipairs(line) do
     local def = data.pokemon[speciesId]
     if def then
       for _, moveId in ipairs(def.level1Moves or {}) do remember(mon, moveId) end
-      for _, entry in ipairs(def.learnset or {}) do
+      for _, entry in ipairs(def.levelMoves or def.learnset or {}) do
         if (entry.level or 1) <= level then remember(mon, entry.move) end
       end
     end
@@ -187,7 +220,11 @@ return function(mod, shared)
   local TextBox = mod.ui.TextBox
 
   local function typeRecord(moveDef)
-    return moveDef and mod.content.type_chart:get(moveDef.type) or nil
+    local registry = mod.content and mod.content.type_chart
+    if not (moveDef and registry and type(registry.get) == "function") then
+      return nil
+    end
+    return registry:get(moveDef.type)
   end
 
   local function typeName(moveDef)
@@ -195,16 +232,46 @@ return function(mod, shared)
     return (record and record.name) or humanize(moveDef and moveDef.type)
   end
 
+  local function normalizedType(moveDef)
+    return tostring(moveDef and moveDef.type or "UNKNOWN"):gsub("_TYPE$", "")
+  end
+
+  local function isStatusMove(moveDef)
+    if type(moveDef) ~= "table" or (tonumber(moveDef.power) or 0) > 0 then
+      return false
+    end
+    if moveDef.fixedDamage ~= nil then return false end
+    return not ZERO_POWER_DAMAGE[moveDef.effect]
+  end
+
+  local function typeCategory(moveDef)
+    local moveType = normalizedType(moveDef)
+    for _, value in ipairs(PHYSICAL_TYPES) do
+      if moveType == value then return "physical" end
+    end
+    for _, value in ipairs(SPECIAL_TYPES) do
+      if moveType == value then return "special" end
+    end
+    return nil
+  end
+
   local function categoryName(moveDef)
     if not moveDef then return "--" end
+    if isStatusMove(moveDef) then return "STATUS" end
     local record = typeRecord(moveDef)
-    local category = moveDef.category or (record and record.category)
+    -- Red/Blue/Yellow and Gold/Silver/Crystal both use the pre-Gen-4 split:
+    -- damage category comes from the move's TYPE.  A per-move category is only
+    -- a fallback for a mod-added type outside the 17 canonical types.
+    local category = typeCategory(moveDef) or moveDef.category
+      or (record and record.category)
     if not category then category = (moveDef.power or 0) == 0 and "status" or "physical" end
     return tostring(category):upper()
   end
 
   local function effectKind(moveDef)
-    local record = moveDef and mod.content.move_effects:get(moveDef.effect)
+    local registry = mod.content and mod.content.move_effects
+    local record = moveDef and registry and type(registry.get) == "function"
+      and registry:get(moveDef.effect) or nil
     return record and tostring(record.kind):upper() or "--"
   end
 
@@ -220,42 +287,32 @@ return function(mod, shared)
     return rows
   end
 
-  local function normalizedType(moveDef)
-    return tostring(moveDef and moveDef.type or "UNKNOWN"):gsub("_TYPE$", "")
-  end
-
-  local function isStatusMove(moveDef)
-    if not moveDef or (tonumber(moveDef.power) or 0) > 0 then return false end
-    if moveDef.fixedDamage ~= nil then return false end
-    return not ZERO_POWER_DAMAGE[moveDef.effect]
-  end
-
   local function statusGroup(moveDef)
-    local effect = tostring(moveDef and moveDef.effect or "")
+    local effect = normalizedEffect(moveDef)
     if effect:find("SLEEP", 1, true) or effect:find("POISON", 1, true)
         or effect:find("PARALYZE", 1, true) then return "major" end
     if effect:find("_DOWN", 1, true) then return "lower" end
-    if effect:find("_UP", 1, true) or effect == "FOCUS_ENERGY_EFFECT" then
+    if effect:find("_UP", 1, true) or RAISE_EFFECTS[effect] then
       return "raise"
     end
-    if effect == "HEAL_EFFECT" or effect == "REST_EFFECT" then return "recovery" end
-    if effect:find("CONFUS", 1, true) or effect == "DISABLE_EFFECT"
-        or effect == "LEECH_SEED_EFFECT" then return "volatile" end
-    if effect == "SUBSTITUTE_EFFECT" or effect == "LIGHT_SCREEN_EFFECT"
-        or effect == "REFLECT_EFFECT" or effect == "MIST_EFFECT"
-        or effect == "HAZE_EFFECT" or effect == "TRANSFORM_EFFECT"
-        or effect == "CONVERSION_EFFECT" then return "field" end
+    if RECOVERY_EFFECTS[effect] then return "recovery" end
+    if effect:find("CONFUS", 1, true) or VOLATILE_EFFECTS[effect] then
+      return "volatile"
+    end
+    if FIELD_EFFECTS[effect] then return "field" end
     return "utility"
   end
 
   local function moveBranch(moveDef)
     if isStatusMove(moveDef) then return "status", statusGroup(moveDef) end
     local moveType = normalizedType(moveDef)
-    for _, value in ipairs(PHYSICAL_TYPES) do
-      if moveType == value then return "physical", value end
-    end
-    for _, value in ipairs(SPECIAL_TYPES) do
-      if moveType == value then return "special", value end
+    local canonical = typeCategory(moveDef)
+    if canonical then return canonical, moveType end
+    local record = typeRecord(moveDef)
+    local category = tostring(moveDef.category or (record and record.category)
+      or ""):lower()
+    if category == "physical" or category == "special" then
+      return category, moveType
     end
     -- A content mod may add a non-Gen-I type.  It must remain reachable rather
     -- than disappearing from ALL MOVES, so the explicit catch-all owns it.
@@ -265,9 +322,13 @@ return function(mod, shared)
   local function allMoveRows(game, section, group)
     local rows = {}
     for id, def in pairs(game.data.moves or {}) do
-      local moveSection, moveGroup = moveBranch(def)
-      if moveSection == section and moveGroup == group then
-        rows[#rows + 1] = { id = id, name = def.name or id }
+      -- Gen 2's merged move table also carries numeric metadata (notably its
+      -- generation marker).  Only actual move records belong in the editor.
+      if type(def) == "table" then
+        local moveSection, moveGroup = moveBranch(def)
+        if moveSection == section and moveGroup == group then
+          rows[#rows + 1] = { id = id, name = def.name or id }
+        end
       end
     end
     table.sort(rows, function(a, b)
@@ -280,7 +341,9 @@ return function(mod, shared)
 
   local function coverage(game)
     local seen, total, indexed = {}, 0, 0
-    for _ in pairs(game.data.moves or {}) do total = total + 1 end
+    for _, def in pairs(game.data.moves or {}) do
+      if type(def) == "table" then total = total + 1 end
+    end
     local function count(section, group)
       for _, row in ipairs(allMoveRows(game, section, group)) do
         indexed = indexed + 1
@@ -290,8 +353,10 @@ return function(mod, shared)
     for _, moveType in ipairs(PHYSICAL_TYPES) do count("physical", moveType) end
     for _, moveType in ipairs(SPECIAL_TYPES) do count("special", moveType) end
     for _, row in ipairs(STATUS_GROUPS) do count("status", row.key) end
-    for id in pairs(game.data.moves or {}) do
-      if seen[id] ~= 1 then return false, id, total, indexed end
+    for id, def in pairs(game.data.moves or {}) do
+      if type(def) == "table" and seen[id] ~= 1 then
+        return false, id, total, indexed
+      end
     end
     if indexed ~= total then return false, "COUNT_MISMATCH", total, indexed end
     return true, nil, total, indexed

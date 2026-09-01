@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 EXTRACTED = DIST / "silvershadow_mods"
 RUNTIME_LIST = ROOT / "runtime-files.txt"
+SOURCE_ONLY = {"modules/storage_boxes.lua"}
 
 
 def selected_files() -> list[tuple[Path, Path]]:
@@ -28,7 +29,9 @@ def selected_files() -> list[tuple[Path, Path]]:
             raise SystemExit(f"Missing runtime entry: {entry}")
         if source.is_dir():
             for child in sorted(path for path in source.rglob("*") if path.is_file()):
-                selected.append((child, child.relative_to(ROOT)))
+                relative = child.relative_to(ROOT)
+                if relative.as_posix() not in SOURCE_ONLY:
+                    selected.append((child, relative))
         else:
             selected.append((source, source.relative_to(ROOT)))
     return selected
@@ -47,9 +50,12 @@ def validate_payload(names: list[str], version: str) -> None:
     if any(name.endswith((".zip", ".png", ".jpg", ".gif")) for name in normalized):
         raise SystemExit("Payload unexpectedly contains an archive or image asset")
     present = set(normalized)
+    retired = sorted(SOURCE_ONLY & present)
+    if retired:
+        raise SystemExit(f"Retired custom box code reached payload: {retired}")
     internal_reads: set[str] = set()
-    for lua_path in ROOT.rglob("*.lua"):
-        if "references" in lua_path.parts or "dist" in lua_path.parts:
+    for lua_path, _ in selected_files():
+        if lua_path.suffix != ".lua":
             continue
         body = lua_path.read_text(encoding="utf-8")
         internal_reads.update(re.findall(r'mod:read\(["\']([^"\']+)["\']\)', body))

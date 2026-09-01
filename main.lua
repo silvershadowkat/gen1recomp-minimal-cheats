@@ -1,4 +1,4 @@
--- SilverShadow Mods 2.1.6
+-- SilverShadow Mods 3.0.17
 -- One entry point, deterministic module order, and one shared service table.
 
 return function(mod)
@@ -21,11 +21,10 @@ return function(mod)
   end
 
   local shared = loadModule("modules/core.lua")
-  local modules = {
+  local gen1Modules = {
     -- Content patches run before runtime consumers such as DexNav.
     "modules/content_151.lua",
     "modules/useful_bag.lua",
-    "modules/storage_boxes.lua",
     "modules/tm_shop.lua",
     "modules/reusable_machines.lua",
 
@@ -39,6 +38,7 @@ return function(mod)
     "modules/heal_anywhere.lua",
 
     -- Unified SilverShadow behavior and compatibility.
+    "modules/trigger_buttons.lua",
     "modules/battle_move_info.lua",
     "modules/cheats.lua",
     "modules/healing.lua",
@@ -51,7 +51,32 @@ return function(mod)
     "modules/ui_hooks.lua",
   }
 
+  -- Gold, Silver, and Crystal share the public hook/menu/storage surfaces,
+  -- but not Gen 1's screen classes, battle class, field table, or script VM.
+  -- Load only modules with real Gen 2 backing; the complete list above stays
+  -- unchanged for Red, Blue, and Yellow.
+  local gen2Modules = {
+    "modules/content_251.lua",
+    "modules/trigger_buttons.lua",
+    "modules/gen2_zoom_match.lua",
+    "modules/gen2_battle_cheats.lua",
+    "modules/movement.lua",
+    "modules/gen2_free_fly.lua",
+    "modules/gen2_party_scroll.lua",
+    "modules/moves_manager.lua",
+    "modules/dv_ev_editor.lua",
+    "modules/gen2_healing.lua",
+    "modules/gen2_dexnav.lua",
+    "modules/gen2_pc.lua",
+    "modules/gen2_item_editor.lua",
+    "modules/followers_integration.lua",
+    "modules/gen2_options.lua",
+    "modules/ui_hooks.lua",
+  }
+
+  local modules = shared.generation == 2 and gen2Modules or gen1Modules
   for _, path in ipairs(modules) do loadModule(path, shared) end
   mod.exports.silvershadow = shared
-  mod.log:info("SilverShadow Mods 2.1.6 loaded")
+  mod.log:info("SilverShadow Mods 3.0.17 loaded for %s",
+    shared.generation == 2 and "Gen 2" or "Gen 1")
 end

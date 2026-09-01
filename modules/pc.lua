@@ -3,7 +3,7 @@ local mod, shared = ...
 local SCREEN = "SilverShadowPC"
 
 local function openPokemon(game)
-  mod.ui.push(game, assert(shared.boxScreen, "Gen 3 box screen unavailable"))
+  mod.ui.push(game, "BoxMenu")
 end
 
 local function openItems(game)

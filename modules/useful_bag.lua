@@ -12,7 +12,6 @@ local POCKETS = {
   { id = "battle", label = "BATTLE ITEMS" },
   { id = "key", label = "KEY ITEMS" },
 }
-local BATTLE_POCKETS = { battle = true, balls = true, medicine = true, items = true }
 local EDITABLE_POCKETS = {
   { id = "items", label = "ITEMS" },
   { id = "medicine", label = "MEDICINE" },
@@ -106,7 +105,7 @@ end
 
 local function pocketIds(game, pocket)
   local ids = {}
-  for _, id in ipairs(Bag.order(game.save)) do
+  for _, id in ipairs(Bag.order(game.save, game.data)) do
     if game.save.inventory[id] and classify(game.data, id) == pocket then
       ids[#ids + 1] = id
     end
@@ -123,7 +122,7 @@ local function swapById(order, a, b)
 end
 
 local function sortBag(game, mode)
-  local order = Bag.order(game.save)
+  local order = Bag.order(game.save, game.data)
   table.sort(order, function(a, b)
     if mode == "count" then
       local ac, bc = game.save.inventory[a] or 0, game.save.inventory[b] or 0
@@ -164,7 +163,7 @@ local function storeFor(game, kind)
     return game.save.pcItems, pcOrder(game.save)
   end
   game.save.inventory = game.save.inventory or {}
-  return game.save.inventory, Bag.order(game.save)
+  return game.save.inventory, Bag.order(game.save, game.data)
 end
 
 local function ensureOrdered(order, id)
@@ -299,16 +298,16 @@ end
 
 local function decorateBag(list, game, opts)
   local battle = opts and opts.battle
-  local pocketIndex = 1
+  -- Gen 1 battle bags are deliberately one complete inventory list. The
+  -- engine has already attached the battle-aware USE behavior to these rows;
+  -- projecting that list into one field pocket can hide Poke Balls (and other
+  -- usable items) from the current battle. Keep separated pockets for the
+  -- overworld bag only.
   if battle then
-    for i, p in ipairs(POCKETS) do
-      if p.id == "battle" and #pocketIds(game, p.id) > 0 then pocketIndex = i end
-    end
+    list.wrap = shared.bool("cursor_wrap", true)
+    return list
   end
-
-  local function usable(index)
-    return not battle or BATTLE_POCKETS[POCKETS[index].id]
-  end
+  local pocketIndex = 1
 
   local function project()
     local selected = list.items[list.index] and list.items[list.index].value
@@ -318,8 +317,7 @@ local function decorateBag(list, game, opts)
     end
     list.items, list.title = rows, POCKETS[pocketIndex].label
     list.wrap = shared.bool("cursor_wrap", true)
-    list.footer = battle and "L/R:POCKET START:SORT"
-      or "L/R SEL:ADD ST:SORT"
+    list.footer = "L/R SEL:ADD ST:SORT"
     list.index, list.scroll = 1, 0
     if selected then
       for index, row in ipairs(rows) do if row.value == selected then list.index = index end end
@@ -327,12 +325,26 @@ local function decorateBag(list, game, opts)
   end
 
   local function switch(delta)
-    local original = pocketIndex
-    repeat
-      pocketIndex = ((pocketIndex - 1 + delta) % #POCKETS) + 1
-    until usable(pocketIndex) or pocketIndex == original
+    pocketIndex = ((pocketIndex - 1 + delta) % #POCKETS) + 1
     list.swapIndex = nil
     project()
+  end
+
+  -- The footer's L/R refers to the physical shoulder buttons.  The engine
+  -- normally reserves those for its speed ladder, so claim them at the open
+  -- bag state before Game's global shortcut handler can see the press.  Keep
+  -- D-pad left/right too for the cartridge-style pocket navigation.
+  local baseGamepadPressed = list.onGamepadPressed
+  list.onGamepadPressed = function(self, button)
+    if button == "leftshoulder" then switch(-1); return end
+    if button == "rightshoulder" then switch(1); return end
+    if baseGamepadPressed then return baseGamepadPressed(self, button) end
+    -- Defining this state callback makes Game treat the bag as the owner of
+    -- every pad press. Forward everything we do not consume back into the
+    -- normal Input map, or A/B/START/SELECT would never reach ListMenu.
+    if game.input and type(game.input.gamepadpressed) == "function" then
+      return game.input:gamepadpressed(nil, button)
+    end
   end
 
   local baseUpdate = list.update
@@ -341,7 +353,7 @@ local function decorateBag(list, game, opts)
     if input:wasPressed("left") then switch(-1); return end
     if input:wasPressed("right") then switch(1); return end
     if input:wasPressed("start") then openSort(game, self, project); return end
-    if not battle and input:wasPressed("select") then
+    if input:wasPressed("select") then
       local pocket = POCKETS[pocketIndex]
       if not shared.gameplayAllowed() then
         self.footer = "Unavailable in link play."
@@ -359,7 +371,9 @@ local function decorateBag(list, game, opts)
     if not item then return end
     if not current.swapIndex then current.swapIndex = current.index; return end
     local first = current.items[current.swapIndex]
-    if first then swapById(Bag.order(game.save), first.value, item.value) end
+    if first then
+      swapById(Bag.order(game.save, game.data), first.value, item.value)
+    end
     current.swapIndex = nil
     project()
   end
@@ -370,7 +384,7 @@ local function decorateBag(list, game, opts)
   local baseChoose = list.onChoose
   list.onChoose = function(item, current)
     baseChoose(item, current)
-    if battle or not item or current.swapIndex
+    if not item or current.swapIndex
         or not shared.gameplayAllowed()
         or not editable(game.data, item.value) then return end
     local menu = game.stack:top()
@@ -481,7 +495,8 @@ local function decoratePcList(list, game)
   if title ~= "WITHDRAW ITEM" and title ~= "TOSS ITEM" and title ~= "DEPOSIT ITEM" then
     return list
   end
-  local order = title == "DEPOSIT ITEM" and Bag.order(game.save) or pcOrder(game.save)
+  local order = title == "DEPOSIT ITEM"
+    and Bag.order(game.save, game.data) or pcOrder(game.save)
   local rank = {}; for index, id in ipairs(order) do rank[id] = index end
   table.sort(list.items, function(a, b)
     return (rank[a.value] or math.huge) < (rank[b.value] or math.huge)

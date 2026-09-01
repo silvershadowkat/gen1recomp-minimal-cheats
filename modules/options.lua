@@ -5,7 +5,7 @@ local SCREENS = {
   battle = "SilverShadowBattle", capture = "SilverShadowCapture",
   world = "SilverShadowWorld", healing = "SilverShadowHealing",
   supplies = "SilverShadowSupplies", movement = "SilverShadowMovement",
-  display = "SilverShadowDisplay", storage = "SilverShadowStorage",
+  display = "SilverShadowDisplay",
   followers = "SilverShadowFollowers",
 }
 
@@ -117,7 +117,6 @@ local menuDefs = {
       toggle("POISON SAVE", "poison_save", false),
       toggle("MAP HEAL", "heal_map_change", false),
       toggle("BATTLE HEAL", "heal_battle", false),
-      toggle("BOX HEAL", "box_heals", false),
     }
   end,
   supplies = function()
@@ -127,6 +126,7 @@ local menuDefs = {
           list.footer = "PC is full; free one item slot."
         end
       end),
+      toggle("BAG CURSOR WRAP", "cursor_wrap", true),
       action("MAX COINS", function(game, list)
         if shared.maxCoins(game) then list.footer = "Game Corner coins set to 9999."
         else list.footer = "Unavailable during online/link play." end
@@ -153,13 +153,6 @@ local menuDefs = {
       toggle("MAP BANNERS", "location_banners", true),
     }
   end,
-  storage = function()
-    return {
-      choice("BOX GRID", "box_grid", { "classic", "big" }, "classic",
-        function(v) return tostring(v):upper() end),
-      toggle("CURSOR WRAP", "cursor_wrap", true),
-    }
-  end,
   followers = function()
     return {
       choice("MODE", "follower_mode", { "trainer", "pokemon" }, "trainer",
@@ -180,7 +173,7 @@ mod.content.screens:register(ROOT, { new = function(game)
     screen("BATTLE", SCREENS.battle), screen("CAPTURE", SCREENS.capture),
     screen("WORLD", SCREENS.world), screen("HEALING", SCREENS.healing),
     screen("SUPPLIES", SCREENS.supplies), screen("MOVEMENT", SCREENS.movement),
-    screen("DISPLAY", SCREENS.display), screen("STORAGE", SCREENS.storage),
+    screen("DISPLAY", SCREENS.display),
   }
   if shared.followersAvailable and shared.followersAvailable(game) then
     items[#items + 1] = screen("FOLLOWERS", SCREENS.followers)
@@ -193,6 +186,39 @@ for key, id in pairs(SCREENS) do
   mod.content.screens:register(screenId, { new = function(game)
     return makeMenu(game, menuKey:upper(), menuDefs[menuKey]())
   end })
+end
+
+-- The engine groups its built-in rows after ui.options.rows runs. That second
+-- pass used to move every custom row below the built-in category openers even
+-- when a mod deliberately inserted it first. Promote this suite and its LCD
+-- companion again on the finished view, preserving their established order.
+local TOP_OPTION_IDS = { "minimal_cheats", "silvershadow_lcd:settings" }
+local function promoteOptionsView(menu)
+  local view = menu and menu.view
+  if type(view) ~= "table" then return menu end
+  local found = {}
+  for i = #view, 1, -1 do
+    local id = view[i] and view[i].id
+    for rank, wanted in ipairs(TOP_OPTION_IDS) do
+      if id == wanted then found[rank] = table.remove(view, i); break end
+    end
+  end
+  for rank = #TOP_OPTION_IDS, 1, -1 do
+    if found[rank] then table.insert(view, 1, found[rank]) end
+  end
+  return menu
+end
+shared.promoteOptionsView = promoteOptionsView
+
+local okOptions, OptionsMenu = pcall(require, "src.ui.OptionsMenu")
+if okOptions and type(OptionsMenu) == "table"
+    and type(OptionsMenu.new) == "function"
+    and not OptionsMenu._silverShadowTopRows then
+  local originalNew = OptionsMenu.new
+  OptionsMenu.new = function(...)
+    return promoteOptionsView(originalNew(...))
+  end
+  OptionsMenu._silverShadowTopRows = true
 end
 
 -- One normal Options row, as requested.
