@@ -1,6 +1,7 @@
 manifest.json
 main.lua
 modules
+assets
 README.md
 CHANGELOG.md
 LICENSE

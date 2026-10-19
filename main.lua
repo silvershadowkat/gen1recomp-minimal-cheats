@@ -1,4 +1,4 @@
--- SilverShadow Mods 3.0.17
+-- SilverShadow Mods 3.1.0
 -- One entry point, deterministic module order, and one shared service table.
 
 return function(mod)
@@ -74,9 +74,15 @@ return function(mod)
     "modules/ui_hooks.lua",
   }
 
-  local modules = shared.generation == 2 and gen2Modules or gen1Modules
+  local gen3Modules = {
+    "modules/gen3_battle_cheats.lua",
+    "modules/gen3_field.lua",
+    "modules/gen3_followers.lua",
+    "modules/gen3_options.lua",
+  }
+  local modules = shared.generation == 3 and gen3Modules
+    or shared.generation == 2 and gen2Modules or gen1Modules
   for _, path in ipairs(modules) do loadModule(path, shared) end
   mod.exports.silvershadow = shared
-  mod.log:info("SilverShadow Mods 3.0.17 loaded for %s",
-    shared.generation == 2 and "Gen 2" or "Gen 1")
+  mod.log:info("SilverShadow Mods 3.1.0 loaded for Gen %s", shared.generation)
 end

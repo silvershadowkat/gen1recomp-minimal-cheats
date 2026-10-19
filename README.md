@@ -1,16 +1,35 @@
 # SilverShadow Mods
 
-SilverShadow Mods is one gameplay and quality-of-life mod for all six games supported by [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, and Crystal. It keeps the internal mod ID minimal_cheats, so existing settings remain attached when upgrading to 3.x.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.0 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
 ## Install
 
-Download silvershadow-mods-v3.0.17.zip from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Do not use GitHub's automatically generated source archive.
+Download silvershadow-mods-v3.1.0.zip from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Do not use GitHub's automatically generated source archive.
 
-The archive has manifest.json, main.lua, and modules/ at its root. It contains no ROM data or Pokemon artwork. The manifest retains the GitHub update metadata introduced in 2.0.2.
+## Gen 3
 
-For followers, separately install [burgerslayer7/PokePCFollowers](https://github.com/burgerslayer7/PokePCFollowers). SilverShadow detects its `PokePCFollowers_VoxelMerge` mod ID and uses its public sprite-provider API; no PokePC code or artwork is copied into the SilverShadow archive.
+Open **START → SILVERSHADOW**. Gen 3 uses native menus and data structures, independently of the older modules.
+
+- **Battle:** EXP and damage multipliers, OHKO, infinite HP/PP, unlimited balls, always hit/critical/first/escape, guaranteed catch, and no random encounters. Both allied slots in double battles are handled. Link battles bypass gameplay cheats; normal game restrictions outside a hook (such as trainer capture restrictions) remain.
+- **Healing/items:** heal now, heal after battles/map changes/catches, perfect-IV catches, 99 Rare Candies, max money/coins, and perfect party IVs.
+- **Party editor:** level, individual IVs, EVs (510 total cap), and all 354 move choices for each slot. The move editor can replace HMs.
+- **Summon:** all 386 National Dex species at level 25, using the game's party/PC placement. **Items/TMs** fills a chosen non-key item to 99, subject to native bag limits. **Pokemon PC** opens native storage anywhere.
+- **Followers:** 0–6 healthy party followers, including Hoenn species and shiny art. Pokemon mode replaces the trainer's visual with the first healthy party Pokemon; an optional trainer trails behind. These sprites are bundled, so Gen 3 needs no PokéPC provider. Keep your existing PokéPC provider enabled only for Gen 1/2.
+- **Free Fly:** take off/land from the movement menu; move over obstacles within the current map. Landing requires clear ground. RETURN TO GROUND restores the takeoff location. Saving is blocked while airborne. Crossing map boundaries, the older badge/story-gate options, and Gen 1/2 DexNav/evolution/extended-level features are not ported to Gen 3. Gen 3 levels remain capped at 100.
+
+L/R page through long catalogues. Battle cheats default off; follower count defaults to one. Settings remain scoped by the engine's mod-save system.
+
+Engine 0.3.91 includes **Shader FX** with LCD presets; the separate SilverShadow LCD mod is optional and should be disabled when using a built-in LCD preset.
+
+### Compatibility validation
+
+The headless suite loads the packaged mod through the real 0.3.91 loader for Gold, Silver, Crystal and all five Gen 3 profiles. Gen 3 checks cover battle hooks, real HP adapters, ball consumption, link exclusions and flight recovery. Live LÖVE tests with locally supplied ROMs exercise followers, Pokemon control, menus/editors, flight, and an actual double battle in FireRed, LeafGreen, Ruby, Sapphire and Emerald. Blue and Gold are also checked with copied existing saves and the installed PokéPC 0.8.3 provider. No ROM data is included in the mod archive.
+
+The archive has manifest.json, main.lua, modules/, and assets/ at its root. No game ROMs are included. Gen 3 follower artwork and its upstream credits are included under assets/gen3_followers. The manifest retains the GitHub update metadata introduced in 2.0.2.
+
+For Gen 1/2 followers, separately install [burgerslayer7/PokePCFollowers](https://github.com/burgerslayer7/PokePCFollowers). SilverShadow detects its `PokePCFollowers_VoxelMerge` mod ID and uses its public sprite-provider API. Gen 3 uses the separately credited bundled sprite sheets.
 
 ## Generation support
 
@@ -56,9 +75,9 @@ Gen 1 keeps its Useful Bag catalogue and separated pockets, editable PC items, e
 - **Standalone Free Fly:** do not enable it alongside SilverShadow. SilverShadow now contains generation-native Free Fly implementations for both Gen 1 and Gen 2.
 - **Dramatic Shape:** remains an optional Gen 1 integration for compatible display and input behavior.
 - **SilverShadow Touchpad:** virtual SELECT uses the normal input path and reaches SilverShadow menus and Gen 1 DexNav.
-- **Followers:** optional. Install the burgerslayer7 PokePCFollowers fork separately; it supplies all 251 six-frame sheets while SilverShadow supplies formation and travel controls. Missing or disabled PokePC leaves the follower menu hidden and does not affect other features.
+- **Gen 1/2 followers:** optional. Install the burgerslayer7 PokePCFollowers fork separately; it supplies all 251 six-frame sheets while SilverShadow supplies formation and travel controls. Missing or disabled PokePC leaves the Gen 1/2 follower menu hidden and does not affect other features. Gen 3 followers work without this provider.
 
-No PokePC, Stadium, follower, Dramatic Shape, or ROM-derived assets are bundled.
+No PokePC code, Stadium models, Dramatic Shape assets, or game ROMs are bundled. See the third-party notices for the Gen 3 follower artwork.
 
 ## Development
 

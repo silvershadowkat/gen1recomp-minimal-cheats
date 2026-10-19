@@ -1,3 +1,13 @@
+# 3.1.0 — Gen 3 / engine 0.3.91
+
+- Add native Gen 3 modules for FireRed, LeafGreen, Ruby, Sapphire and Emerald.
+- Handle both allied battlers, native PP arrays, ball pockets and four-shake catches; preserve link battle rules.
+- Add 386-species normal/shiny followers, Pokemon control and optional trainer trail.
+- Add map-local Free Fly with safe landing, return-to-ground and airborne save rejection.
+- Add native menus for healing, money/items, party level/IV/EV/move edits, summoning and PC access.
+- Keep the existing Gen 1/2 suites and PokéPC integration. Engine LCD presets replace the need for a separate LCD mod.
+- Expand regression coverage to the real 0.3.91 loader and Gen 3 adapters.
+
 # Changelog
 
 ## 3.0.17 - 2026-08-31

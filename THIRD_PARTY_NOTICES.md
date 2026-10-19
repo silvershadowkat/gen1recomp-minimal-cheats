@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-SilverShadow Mods contains adapted MIT-licensed source where noted and clean-room behavioral reimplementations where a reference repository did not publish a license. No third-party image, ROM, model, audio, Stadium, follower, or Dramatic Shape assets are included.
+SilverShadow Mods contains adapted MIT-licensed source where noted and clean-room behavioral reimplementations where a reference repository did not publish a license. Gen 3 follower images are included with attribution below. No game ROMs, Stadium models, audio, or Dramatic Shape assets are included.
 
 ## MIT-licensed adaptations
 
@@ -29,3 +29,6 @@ Each listed project is distributed under the MIT License:
 - **burgerslayer7/PokePCFollowers** — https://github.com/burgerslayer7/PokePCFollowers — optional runtime sprite provider and compatibility target. It is installed separately; no source or follower sheets from that repository are included in SilverShadow Mods.
 
 Gen1Recomp itself is the API/runtime reference and remains governed by its own repository license. SilverShadow Mods does not redistribute the engine.
+
+## Gen 3 follower sprites
+The 001-386 normal and shiny runtime sheets are from Wilds of Kanto v2.1.9 (YoDrehDenSwagAuf/overworld-spawn-mod), derived from HGSS-style / PokeMMO follower art. They retain the original authors' rights and are not covered by the code license. Upstream attribution is reproduced in assets/gen3_followers/UPSTREAM_NOTICES.md.

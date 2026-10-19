@@ -28,7 +28,7 @@ if not rawget(_G, "bit") and not rawget(_G, "bit32") then
   package.preload["bit"] = function() return bit32 end
 end
 
-require("src.core.Version").engine = "0.1.86"
+require("src.core.Version").engine = "0.3.91"
 local GameVersion = require("src.core.GameVersion")
 local Runtime = require("src.mods.Runtime")
 local Evolution2 = require("src.core.gen2.Evolution")
@@ -87,7 +87,7 @@ local function loadGen1()
   assert(#run.errors == 0, "Gen 1 loader errors: " .. table.concat(run.errors, "; "))
   local exports = assert(run.loader.exports.minimal_cheats,
     "SilverShadow Gen 1 exports were not published")
-  assert(exports.silvershadow.version == "3.0.17", "wrong Gen 1 runtime version")
+  assert(exports.silvershadow.version == "3.1.0", "wrong Gen 1 runtime version")
   assert(run.loader.mods.minimal_cheats.manifest.github
       == "silvershadowkat/gen1recomp-minimal-cheats",
     "GitHub update repository metadata was not loaded")
@@ -176,7 +176,7 @@ local function loadGen2()
   local exports = assert(run.loader.exports.minimal_cheats,
     "SilverShadow Gen 2 exports were not published")
   local shared = assert(exports.silvershadow)
-  assert(shared.version == "3.0.17" and shared.generation == 2,
+  assert(shared.version == "3.1.0" and shared.generation == 2,
     "wrong Gen 2 runtime branch")
   local freeFly = assert(exports.freeFly,
     "Gen 2 Free Fly API was not exported")
@@ -397,7 +397,7 @@ local function loadGen2()
   assert(not exports.followersIntegration.activate(activationGame),
     "follower controller installed before the first Pokemon existed")
   assert(not exports.followersIntegration.engine()._followersExControlEngine,
-    "pre-starter game mutated PokéPC's standalone controller")
+    "pre-starter game mutated PokÃƒÂ©PC's standalone controller")
   activationGame.save.party[1] = { species = "FIXMON_A", hp = 20 }
   local savedLove = love
   love = { graphics = {
