@@ -69,7 +69,7 @@ function M.online()
   local game = M.game
   if not game then return false end
   if M.generation == 3 then
-    local link = package.loaded["src.core.game3.link"]
+    local link = require("src.core.game3.link")
     if link and link.link ~= nil then return true end
   end
   if game.linkSession ~= nil then return true end

@@ -75,7 +75,8 @@ mod.hooks:wrap("catch.rate", function(next, ball, mon, def, opts)
   return next(ball, mon, def, opts)
 end)
 mod.hooks:wrap("encounter.roll", function(next, def, ctx)
-  if enabled("no_encounters") or shared.gen3Flying then return nil end
+  local search=shared.gen3DexNavPending and shared.gen3DexNavPending()
+  if (enabled("no_encounters")and not search)or shared.gen3Flying then return nil end
   return next(def, ctx)
 end)
 

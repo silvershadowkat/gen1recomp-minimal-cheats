@@ -2,6 +2,8 @@ local mod, shared = ...
 local Effects = require("src.core.game3.field_effects")
 local Player = require("src.core.game3.player")
 local Pokemon = require("src.core.game3.pokemon")
+local Collision=require("src.core.game3.collision")
+local Moves=require("src.core.game3.field_moves")
 local images, trail = {}, {}
 local lastMap, lastX, lastY
 local function renderer(mon)
@@ -48,6 +50,53 @@ local function pose(index)
     or dy~=0 and (dy>0 and "down" or "up") or from.facing
   return (from.x+dx*t)*16,(from.y+dy*t)*16,facing,t>0 and 1 or 0
 end
+local function knows(mon,id)
+  for _,m in ipairs(mon.moves or {})do if Moves.normalizeMoveId(m)==id then return true end end
+  return false
+end
+local function hasType(mon,id)
+  for _,t in ipairs(Pokemon.types(Pokemon.speciesOf(mon)))do if t==id then return true end end
+  return false
+end
+local function style(mon,water,flying)
+  local swim=knows(mon,57)or hasType(mon,11)
+  local air=knows(mon,19)or hasType(mon,2)
+  local hover=hasType(mon,14)or hasType(mon,7)
+  if flying then
+    if air then return "air"end
+    if hover then return "hover"end
+  end
+  if water then
+    if swim then return "surf"end
+    if air then return "air"end
+    if hover then return "hover"end
+    return nil
+  end
+  return "ground"
+end
+local styled=setmetatable({},{__mode="k"})
+local function travelRenderer(mon,x,y)
+  local water=Player.underwater or Collision.isSurfable(Collision.worldBehavior(math.floor(x/16),math.floor(y/16)))
+  local mode=style(mon,water,shared.gen3Flying)
+  if not mode then return nil end
+  local base=renderer(mon)
+  if not base or mode=="ground"then return base end
+  styled[base]=styled[base]or{}
+  if styled[base][mode]then return styled[base][mode]end
+  local r={draw=function(_,px,py,cx,cy,dir,phase)
+    local g=love.graphics
+    local lift=(mode=="air"and 8 or mode=="hover"and 5 or -2)
+    local bob=mode~="surf"and(phase==1 and 1 or 0)or 0
+    g.setColor(mode=="surf"and .45 or .15,mode=="surf"and .8 or .15,mode=="surf"and 1 or .15,.55)
+    g.ellipse(mode=="surf"and"line"or"fill",px-cx+8,py-cy+12,7,2)
+    base:draw(px,py-lift-bob,cx,cy,dir,phase)
+    if mode=="surf"then
+      g.setColor(.65,.9,1,.8);g.line(px-cx+2,py-cy+12,px-cx+14,py-cy+12)
+    end
+    g.setColor(1,1,1,1)
+  end}
+  styled[base][mode]=r;return r
+end
 local original = Effects.collectActors
 Effects.collectActors = function(actors, cx, cy, ...)
   for _,a in ipairs(actors) do
@@ -55,7 +104,7 @@ Effects.collectActors = function(actors, cx, cy, ...)
   end
   if original then original(actors,cx,cy,...) end
   local s=shared.gen3Session()
-  if not s or not shared.gameplayAllowed() or shared.gen3Flying then return end
+  if not s or not shared.gameplayAllowed() then return end
   updateTrail(s)
   local party={}
   for _,mon in ipairs(s.party or {}) do
@@ -65,7 +114,7 @@ Effects.collectActors = function(actors, cx, cy, ...)
   local control=shared.allowed("follower_mode",{"trainer","pokemon"},"trainer")=="pokemon"
   local trainer
   if control and party[1] then
-    local sprite=renderer(party[1])
+    local sprite=travelRenderer(party[1],Player.cellX*16,Player.cellY*16)
     if sprite then
       for _,a in ipairs(actors) do
         if a.kind=="player" then
@@ -77,19 +126,19 @@ Effects.collectActors = function(actors, cx, cy, ...)
     end
   end
   local offset=0
-  if trainer and shared.bool("trainer_follows",false) then
+  if trainer and shared.bool("trainer_follows",false)and not Player.surfing and not Player.underwater and not shared.gen3Flying then
     trainer.x,trainer.y,trainer.facing,trainer.walkPhase=pose(1)
     trainer.sortY=trainer.y; trainer.kind="silvershadow_trainer"
     actors[#actors+1]=trainer; offset=1
   end
   for i=1,count do
     local mon=party[i+(trainer and 1 or 0)]
-    local sprite=mon and renderer(mon)
+    local x,y,dir,phase=pose(i+offset)
+    local sprite=mon and travelRenderer(mon,x,y)
     if sprite then
-      local x,y,dir,phase=pose(i+offset)
       actors[#actors+1]={kind="silvershadow_follower",i=-10-i,x=x,y=y,sortY=y,
         facing=dir,walkPhase=phase,elevation=Player.elevation,renderer=sprite}
     end
   end
 end
-shared.gen3Followers = { renderer=renderer, updateTrail=updateTrail, pose=pose }
+shared.gen3Followers = { renderer=renderer, updateTrail=updateTrail, pose=pose,style=style,travelRenderer=travelRenderer }

@@ -85,6 +85,8 @@ end
 local menuDefs = {
   battle = function()
     return {
+      toggle("MODERN HUD", "modern_battle_hud", true),
+      toggle("INSTANT TEXT", "instant_text", true),
       toggle("INFINITE HP", "infinite_hp", false),
       toggle("INFINITE PP", "infinite_pp", false),
       toggle("NO DRAWBACKS", "no_move_drawbacks", false),
@@ -121,6 +123,9 @@ local menuDefs = {
   end,
   supplies = function()
     return {
+      action("EDIT BAG ITEMS",function(game)
+        mod.ui.push(game,shared.itemEditorScreen,{store="bag"})
+      end),
       toggle("PC RARE CANDY", "pc_rare_candy", false, function(game, value, list)
         if value and shared.ensureRareCandy and not shared.ensureRareCandy(game) then
           list.footer = "PC is full; free one item slot."

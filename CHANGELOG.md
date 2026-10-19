@@ -1,12 +1,20 @@
 # 3.1.0 — Gen 3 / engine 0.3.91
 
-- Add native Gen 3 modules for FireRed, LeafGreen, Ruby, Sapphire and Emerald.
-- Handle both allied battlers, native PP arrays, ball pockets and four-shake catches; preserve link battle rules.
+- Support all eleven Gen 1–3 games with generation-native module loading.
+- Add Gen 3 battle cheats for both allied slots, native PP/HP/ball handling, and link exclusions. Keep trainer and unsupported double capture restrictions.
 - Add 386-species normal/shiny followers, Pokemon control and optional trainer trail.
-- Add map-local Free Fly with safe landing, return-to-ground and airborne save rejection.
-- Add native menus for healing, money/items, party level/IV/EV/move edits, summoning and PC access.
-- Keep the existing Gen 1/2 suites and PokéPC integration. Engine LCD presets replace the need for a separate LCD mod.
-- Expand regression coverage to the real 0.3.91 loader and Gen 3 adapters.
+- Add map-local Free Fly with default badge/story gates, safe landing, return-to-ground and airborne save rejection.
+- Add Gen 3 Dex Hunt, queued DexNav, no-trade evolution alternatives and obtainable held items, retaining native evolution gates.
+- Add Gen 3 IV/EV/level editors and current-level/ancestral move learning with a SELECT-switchable categorized full move picker.
+- Restore native Gen 1 Bag and PC item operations; retain a separate additive item editor. Keep native Gen 2/3 inventory screens.
+- Add an optional full 4:3 Gen 1/2 battle layout redirecting to imported FRLG sprites, matching trainer portraits, UI and font assets. Add type-colored moves, effectiveness, HP and caught indicators.
+- Preserve native Yellow starter Pikachu identity, happiness and availability alongside extra followers.
+- Remove the retired starter substitution and cache a missing optional healing-machine image, with a drawn fallback.
+- Add HM-device field actions in Gen 2/3, including native RSE scripted prompts, while preserving follower move/type eligibility.
+- Add reusable Gen 2/3 TMs, registered Gen 3 DexNav, and current-page instant text across all three generations.
+- Preserve native Gen 3 battle terrain and select appropriate Gen 1/2 terrain/leader/League visuals.
+- Use built-in engine LCD presets and retain PokéPC integration for Gen 1/2.
+- Validate the real 0.3.91 loader and live runtime across all eleven games, including Gen 3 double battles, collection/evolution checks and Gen 1/2 battle presentation.
 
 # Changelog
 

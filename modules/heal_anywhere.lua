@@ -43,7 +43,7 @@ return function(mod, shared)
   local machineImg, ballImg, ballQuad, monitorQuad
 
   local function loadImages(force)
-    if not force and machineImg then return machineImg ~= false end
+    if not force and machineImg ~= nil then return machineImg ~= false end
     machineImg, ballImg, ballQuad, monitorQuad = nil, nil, nil, nil
     local path = mod.path .. "/assets/field_heal_machine.png"
     local ok, img = pcall(love.graphics.newImage, path)
@@ -52,7 +52,9 @@ return function(mod, shared)
       machineImg = img
     else
       machineImg = false
-      mod.log:warn("heal machine image missing: %s", tostring(path))
+      -- Older installations omitted this optional image. Draw a small case
+      -- around the native monitor/ball animation instead of retrying disk
+      -- reads and logging an error every frame.
     end
     local fx = Game and Game.data and Game.data.field and Game.data.field.overworldFx
     local bpath = fx and fx.healMachine and fx.healMachine.path
@@ -101,7 +103,7 @@ return function(mod, shared)
   -- Cam-relative world pixels — same contract as stock fxHeal inside at().
   local function drawFieldHeal(ow, ha)
     if not ha or not ha.field then return end
-    if not loadImages(false) then loadImages(true) end
+    loadImages(false)
     local cam = ow.camera
     if not cam then return end
     local mx = ha.mx or ((ha.px or 0) - 8)
@@ -115,6 +117,14 @@ return function(mod, shared)
 
     if machineImg then
       love.graphics.draw(machineImg, ox, oy)
+    else
+      love.graphics.setColor(.2,.25,.3,1)
+      love.graphics.rectangle("fill",ox,oy,32,32,3,3)
+      love.graphics.setColor(.8,.83,.87,1)
+      love.graphics.rectangle("fill",ox+2,oy+2,28,28,2,2)
+      love.graphics.setColor(.73,.2,.24,1)
+      love.graphics.rectangle("fill",ox+3,oy+3,26,6)
+      love.graphics.setColor(1,1,1,1)
     end
 
     local flash = (ha.visible == false) and (ha.phase == "flash")

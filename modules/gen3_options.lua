@@ -25,22 +25,27 @@ local function back()
   if #pages==0 then Stack.pop(id); return end
   menu.list=pages[#pages].list; refresh()
 end
-show=function(title,rows)
+show=function(title,rows,opts)
   local list=List.new({template=Window.template(1,3,28,14),items=rows,maxShowed=7,
     rowHeight=16,scrollMultiple="lr",onSelect=function(row) row.run(); refresh() end,onCancel=back})
-  pages[#pages+1]={title=title,list=list}; menu.list=list; refresh()
+  pages[#pages+1]={title=title,list=list,opts=opts}; menu.list=list; refresh()
   Stack.push(id,menu,{hideBelow=true,fullscreen=true})
 end
-function menu.handleInput(input) menu.list:handleInput(input) end
+function menu.handleInput(input)
+  local page=pages[#pages]
+  if page and page.opts and page.opts.switch and input:wasPressed("select") then page.opts.switch();return end
+  menu.list:handleInput(input)
+end
 function menu.update(dt) menu.list:update(dt) end
 function menu.draw()
   love.graphics.clear(0.08,0.12,0.18,1)
   Font.draw(pages[#pages].title,12,2)
   menu.list:draw()
-  Font.draw("A: CHANGE / OPEN   B: BACK",8,144)
+  Font.draw(pages[#pages].opts and "SELECT: POOL / ALL  B: BACK" or "A: CHANGE / OPEN   B: BACK",8,144)
 end
 local function battle()
   return {
+    toggle("INSTANT TEXT","instant_text",true),
     choice("EXP MULT", "exp_multiplier",shared.EXP_MULTIPLIERS,1),
     choice("DAMAGE", "damage_multiplier",shared.DAMAGE_MODES,1),
     toggle("INFINITE HP","infinite_hp",false),toggle("INFINITE PP","infinite_pp",false),
@@ -61,11 +66,25 @@ local function healing()
 end
 local function movement()
   return {action("TAKE OFF / LAND",shared.gen3ToggleFly),action("RETURN TO GROUND",shared.gen3ReturnToGround),
+    toggle("HM DEVICE","hm_device",true),
+    toggle("BADGE / FLY CHECK","fly_badge_check",true),toggle("STORY GATES","fly_story_gates",true),
     choice("SPEED MULT","move_boost",shared.MOVE_MULTIPLIERS,2),
     choice("FOOT BOOST","foot_boost",shared.BOOST_STATES,"ON"),
     choice("BIKE BOOST","bike_boost",shared.BOOST_STATES,"OFF"),
     choice("SURF BOOST","surf_boost",shared.BOOST_STATES,"OFF"),
     choice("FLY HEIGHT","fly_height",shared.FLY_HEIGHTS,"MED")}
+end
+local function fieldTools()
+  local rows={toggle("HM DEVICE","hm_device",true),toggle("REUSABLE TMS","reusable_tms",true)}
+  for _,move in ipairs({"FLASH","FLY"})do
+    if shared.ownsGen3HM(move)then rows[#rows+1]=action(move,function()
+      local ok,msg=shared.gen3UseHM(move);if not ok then shared.gen3Message(msg)end
+    end)end
+  end
+  rows[#rows+1]=action("REGISTER DEXNAV ON SELECT",function()
+    shared.ensureGen3DexNav();shared.gen3Session().registeredItem=shared.gen3DexNavItem
+  end)
+  return rows
 end
 local function followers()
   return {choice("MODE","follower_mode",{"trainer","pokemon"},"trainer"),
@@ -99,31 +118,53 @@ local function stats(mon,kind)
   end
   return rows
 end
-local function movePicker(mon,slot)
-  local rows={}
-  for n=1,354 do
-    local move=Pokemon.battleMove(n)
-    if move then
-      local num=n
-      rows[#rows+1]=action(move.name or move.id or tostring(n),function()
-        if not shared.gameplayAllowed() then return end
-        -- The cheat deliberately permits replacing HMs, unlike the native tutor.
-        mon.moves=mon.moves or {};mon.pp=mon.pp or {};mon.maxPp=mon.maxPp or {}
-        mon.moves[slot]=num;mon.pp[slot]=move.pp or 5;mon.maxPp[slot]=move.pp or 5
-        local s=shared.gen3Session()
-        for pi,m in ipairs(s and s.party or {}) do
-          if m==mon and s.move_overlay and s.move_overlay[pi] then s.move_overlay[pi][slot]=nil end
-        end
-        if type(mon.ppUps)=="table" then mon.ppUps[slot]=0 end
-        if type(mon.ppBonuses)=="number" then
-          local shift=4^(slot-1);local old=math.floor(mon.ppBonuses/shift)%4
-          mon.ppBonuses=mon.ppBonuses-old*shift
-        end
-        back()
+local function openMovePicker(mon,slot)
+  local base=#pages
+  local tools=shared.gen3Moves
+  local openPool,openAll,opts
+  local function reset() while #pages>base do table.remove(pages)end end
+  local function rowsFor(ids)
+    local rows={}
+    for _,num in ipairs(ids)do
+      local move=num
+      rows[#rows+1]=action(Pokemon.moveName(move),function()
+        local def=Pokemon.battleMove(move)
+        local branch,group=tools.branch(move)
+        show(Pokemon.moveName(move),{
+          action(branch:upper().." / "..group,function()end),
+          action("POWER "..tostring(def.power).."  ACC "..tostring(def.accuracy),function()end),
+          action("PP "..tostring(def.pp),function()end),
+          action("TEACH TO SLOT "..slot,function()
+            if tools.teach(mon,slot,move)then
+              reset();menu.list=pages[#pages].list;refresh()
+            end
+          end)},opts)
       end)
     end
+    if #rows==0 then rows[1]=action("NO MOVES IN THIS GROUP",function()end)end
+    return rows
   end
-  return rows
+  openPool=function()
+    reset();opts={switch=function()openAll()end}
+    show("ELIGIBLE THROUGH LV "..mon.level,rowsFor(tools.eligible(mon)),opts)
+  end
+  openAll=function()
+    reset();opts={switch=function()openPool()end}
+    local sections={}
+    for _,section in ipairs({"physical","special","status"})do
+      local key=section
+      sections[#sections+1]=action(section:upper(),function()
+        local groups={}
+        for _,group in ipairs(tools.groups[key])do
+          local name=group
+          groups[#groups+1]=action(name,function()show(name,rowsFor(tools.catalog(key,name)),opts)end)
+        end
+        show(key:upper(),groups,opts)
+      end)
+    end
+    show("ALL MOVES: CATEGORIES",sections,opts)
+  end
+  openPool()
 end
 local function pokemonEditor(mon)
   local rows={editNumber("LEVEL",function()return mon.level end,function(level)
@@ -135,7 +176,7 @@ local function pokemonEditor(mon)
     submenu("IV EDITOR",function()return stats(mon,"ivs")end),
     submenu("EV EDITOR",function()return stats(mon,"evs")end)}
   for slot=1,4 do
-    rows[#rows+1]=submenu("MOVE SLOT "..slot,function()return movePicker(mon,slot)end)
+    rows[#rows+1]=action("MOVE SLOT "..slot,function()openMovePicker(mon,slot)end)
   end
   return rows
 end
@@ -176,15 +217,38 @@ local function itemPicker()
   end
   return rows
 end
+local function dexPicker(species)
+  local rows={}
+  for _,num in ipairs(species) do
+    local target=num
+    rows[#rows+1]=action((shared.gen3Owned(target) and "* " or "  ")..Pokemon.name(target),function()
+      if shared.gen3DexNav(target) then pages={};Stack.pop(id) end
+    end)
+  end
+  if #rows==0 then rows[1]=action("NO MATCHING POKEMON",function()end) end
+  return rows
+end
+local function collection()
+  return {toggle("DEX HUNT 386","gen3_dex_hunt",true),
+    choice("HUNT EVERY N WILD","gen3_dex_rate",{1,10,20,50},20),
+    toggle("NO TRADE EVOLUTIONS","gen3_no_trade",true),
+    submenu("AREA DEXNAV",function()return dexPicker(shared.gen3LocalSpecies())end),
+    submenu("UNCAUGHT DEXNAV",function()return dexPicker(shared.gen3Uncaught())end),
+    submenu("ALL 386 DEXNAV",function()
+      local list={};for n=1,386 do local s=Pokemon.speciesFromNational(n);if s then list[#list+1]=s end end
+      return dexPicker(list)
+    end),action("CANCEL DEXNAV SEARCH",function()shared.gen3DexNav(nil)end)}
+end
 function shared.openGen3Options()
+  shared.ensureGen3DexNav()
   pages={}
   show("SILVERSHADOW",{submenu("BATTLE CHEATS",battle),submenu("HEALING / ITEMS",healing),
-    submenu("MOVEMENT / FREE FLY",movement),submenu("FOLLOWERS",followers),
+    submenu("MOVEMENT / FREE FLY",movement),submenu("FOLLOWERS",followers),submenu("DEXNAV / COLLECTION",collection),
     submenu("PARTY EDITOR",partyEditor),submenu("SUMMON POKEMON",summon),
     submenu("ITEMS / TMS",itemPicker),action("POKEMON PC",function()
       if shared.gameplayAllowed() then require("src.ui.game3.pc_menu").show({
         session=shared.gen3Session(),game=shared.game,startMode="storage"}) end
-    end)})
+    end),submenu("FIELD TOOLS / QOL",fieldTools)})
 end
 mod.hooks:wrap("ui.start_menu.items",function(next,game,items,...)
   items=next(game,items,...)

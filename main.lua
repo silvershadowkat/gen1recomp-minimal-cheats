@@ -69,6 +69,7 @@ return function(mod)
     "modules/gen2_dexnav.lua",
     "modules/gen2_pc.lua",
     "modules/gen2_item_editor.lua",
+    "modules/gen2_field_tools.lua",
     "modules/followers_integration.lua",
     "modules/gen2_options.lua",
     "modules/ui_hooks.lua",
@@ -77,12 +78,21 @@ return function(mod)
   local gen3Modules = {
     "modules/gen3_battle_cheats.lua",
     "modules/gen3_field.lua",
+    "modules/gen3_collection.lua",
+    "modules/gen3_moves.lua",
+    "modules/gen3_field_tools.lua",
     "modules/gen3_followers.lua",
     "modules/gen3_options.lua",
   }
   local modules = shared.generation == 3 and gen3Modules
     or shared.generation == 2 and gen2Modules or gen1Modules
   for _, path in ipairs(modules) do loadModule(path, shared) end
+  loadModule("modules/instant_text.lua",shared)
+  if shared.generation~=3 then
+    loadModule("modules/battle_assets.lua",shared)
+    loadModule("modules/battle_presentation.lua",shared)
+  end
+  if shared.gameVersion=="yellow" then loadModule("modules/yellow_companion.lua",shared) end
   mod.exports.silvershadow = shared
   mod.log:info("SilverShadow Mods 3.1.0 loaded for Gen %s", shared.generation)
 end

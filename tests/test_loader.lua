@@ -397,7 +397,7 @@ local function loadGen2()
   assert(not exports.followersIntegration.activate(activationGame),
     "follower controller installed before the first Pokemon existed")
   assert(not exports.followersIntegration.engine()._followersExControlEngine,
-    "pre-starter game mutated PokÃƒÂ©PC's standalone controller")
+    "pre-starter game mutated PokÃƒÆ’Ã‚Â©PC's standalone controller")
   activationGame.save.party[1] = { species = "FIXMON_A", hp = 20 }
   local savedLove = love
   love = { graphics = {
@@ -444,6 +444,8 @@ local function loadGen2()
   -- edited SURF user reappears with the swimming animation style.
   activationGame.save.party[1].moves = { { id = "FLY" } }
   activationGame.save.party[2].moves = {}
+  local waterTypes=run.data.pokemon.FIXMON_B.types
+  run.data.pokemon.FIXMON_B.types={"NORMAL"}
   activationOw.player.freeFlying = true
   activationOw.player.silverTravelAltitude = 56
   activationCollision = 0x20
@@ -454,6 +456,7 @@ local function loadGen2()
   assert(#activationOw.silverGen2Followers == 0,
     "incapable Gen 2 follower did not hide over water")
   activationGame.save.party[2].moves = { { id = "SURF" } }
+  run.data.pokemon.FIXMON_B.types=waterTypes
   followerApi._step(activationGame)
   assert(#activationOw.silverGen2Followers == 1
       and activationOw.silverGen2Followers[1].silverTravelStyle == "surf",

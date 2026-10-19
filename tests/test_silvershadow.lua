@@ -222,44 +222,14 @@ itemGame.input = {
   gamepadpressed = function(_, _, button) forwardedPad = button end,
   wasPressed = function() return false end,
 }
-local bagEditor = screens.BagMenu.new(itemGame, {})
-bagEditor:onGamepadPressed("rightshoulder")
-eq(bagEditor.title, "MEDICINE",
-  "Blue field bag L/R shoulder changes the separated pocket")
-check(bagEditor.items[1] and bagEditor.items[1].value == "POTION",
-  "Blue field bag keeps live inventory visible after a shoulder pocket change")
-bagEditor:onGamepadPressed("leftshoulder")
-eq(bagEditor.title, "ITEMS", "Blue field bag L shoulder returns one pocket")
-bagEditor:onGamepadPressed("b")
-eq(forwardedPad, "b",
-  "Blue field bag forwards unclaimed controller buttons to normal Input")
-bagEditor.onChoose(bagEditor.items[1], bagEditor)
-local itemActions = itemGame.stack:top()
-local hasQuantity = false
-for _, row in ipairs(itemActions.items) do
-  if row.label == "QUANTITY" then hasQuantity = true end
-end
-check(hasQuantity, "An ordinary bag item's USE/TOSS menu adds QUANTITY")
-local battleBag = screens.BagMenu.new(itemGame, { battle = {} })
-local battleItems = {}
-for _, row in ipairs(battleBag.items) do
-  if row.value then battleItems[row.value] = true end
-end
-check(battleItems.POKE_BALL and battleItems.POTION and battleItems.ESCAPE_ROPE,
-  "Blue battle bag keeps the engine's complete inventory including Poke Balls")
-eq(battleBag.title, "ITEMS",
-  "Blue battle bag is not replaced by one separated field pocket")
+check(screens.BagMenu == nil, "Native field and battle bag screens are not replaced")
+local bagEditor = screens[itemTools.itemEditorScreen].new(itemGame,{store="bag"})
+eq(bagEditor.title,"ITEMS","Separate bag editor is accessible")
 stackItems = {}
-local emptyPocketGame = {
-  save = { inventory = {}, pcItems = {}, money = 0 },
-  data = itemGame.data,
-  stack = itemGame.stack,
-  input = { wasPressed = function(_, key) return key == "select" end },
-}
-local emptyPocketBag = screens.BagMenu.new(emptyPocketGame, {})
-emptyPocketBag:update(0)
-eq(emptyPocketGame.stack:top().title, "ADD ITEMS",
-  "SELECT opens the add catalogue even when the current pocket is empty")
+itemGame.input = {wasPressed=function(_,key)return key=="select"end}
+bagEditor:update(0)
+eq(itemGame.stack:top().title,"ADD ITEMS","Separate editor adds items without changing the bag UI")
+stackItems = {}
 local pcItemEditor = screens[itemTools.itemEditorScreen].new(
   itemGame, { store = "pc" })
 eq(pcItemEditor.title, "PC ITEMS", "PC item editor opens in the Items pocket")
@@ -878,8 +848,8 @@ eq(classify(travelGame, editedDualTraveler, "fly", true), "air",
 eq(classify(travelGame, editedDualTraveler, "surf", true), "surf",
   "A dual edited traveler swims during Surf")
 travelGame.save.inventory.HM03 = nil
-eq(classify(travelGame, { species = "SQUIRTLE" }), nil,
-  "Water followers wait until Surf is obtained")
+eq(classify(travelGame, { species = "SQUIRTLE" }), "surf",
+  "Water followers can swim independently of player HM eligibility")
 eq(classify(travelGame, editedSurfer, "surf", true), "surf",
   "A Pokemon that actually knows SURF remains an edited swimmer without HM03")
 check(mod.exports.freeFly.eligible(travelGame, {

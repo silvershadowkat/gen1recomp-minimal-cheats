@@ -32,3 +32,7 @@ Gen1Recomp itself is the API/runtime reference and remains governed by its own r
 
 ## Gen 3 follower sprites
 The 001-386 normal and shiny runtime sheets are from Wilds of Kanto v2.1.9 (YoDrehDenSwagAuf/overworld-spawn-mod), derived from HGSS-style / PokeMMO follower art. They retain the original authors' rights and are not covered by the code license. Upstream attribution is reproduced in assets/gen3_followers/UPSTREAM_NOTICES.md.
+
+## Imported battle assets (runtime reference only)
+
+The optional Gen 1/2 battle presentation reads UI, fonts, terrain, Pokemon and matching trainer sprites from the user's imported FireRed/LeafGreen cache through the engine cache API. No such ROM-derived files are included in this repository or release. These assets retain their original rights; the mod only provides presentation and lookup code.

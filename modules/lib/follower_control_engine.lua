@@ -299,7 +299,7 @@ return function(hostMod, assetMod)
 
     local pikaIdx = nil
     for i, mon in ipairs(party) do
-      if mon and mon.species == "PIKACHU" then
+      if mon and PikachuFollower.isStarterPikachu(save,mon) then
         pikaIdx = i
         break
       end
@@ -365,7 +365,7 @@ return function(hostMod, assetMod)
 
   local function partyPikachuIndex(save)
     for i, mon in ipairs(save.party or {}) do
-      if mon and mon.species == "PIKACHU" and (mon.hp or 0) > 0 then
+      if mon and PikachuFollower.isStarterPikachu(save,mon) and (mon.hp or 0) > 0 then
         return i
       end
     end
@@ -399,15 +399,15 @@ return function(hostMod, assetMod)
     if not GameVersion.isYellow() then return end
     local npc = findStockPikachu(ow)
     if not npc then return end
-    local path = followerPath("PIKACHU")
+    local path = "assets/generated/sprites/pikachu.png"
     local def = npc.sprite and npc.sprite.def
-    if def and def.image == path and def.id == "SPRITE_PIKACHU" then
+    if def and def.image == path and def.id == "SILVERSHADOW_NATIVE_PIKACHU" then
       npc._pokepcFollowerSpecies = "PIKACHU"
       return
     end
     local ok, sprite = pcall(SpriteRenderer.new, {
-      id = "SPRITE_PIKACHU",
-      image = path, frames = 6, walker = true, trueColor = true,
+      id = "SILVERSHADOW_NATIVE_PIKACHU",
+      image = path, frames = 6, walker = true,
     }, npc.id or "pikachu")
     if ok and sprite then
       npc.sprite = sprite
@@ -1455,15 +1455,8 @@ return function(hostMod, assetMod)
 
   -- Party / PC leader UI: FOLLOWERS_EX mod (keeps sprite-pack credit clean).
 
-  -- Yellow starter renames
-  if GameVersion.isYellow() then
-    mod.content.strings:override("PIKACHU", "CHARMANDER")
-    local origNewWild = BattleState.newWild
-    BattleState.newWild = function(game, species, level, ...)
-      if species == "PIKACHU" and level == 5 then species = "CHARMANDER" end
-      return origNewWild(game, species, level, ...)
-    end
-  end
+  -- Yellow's original starter, names and scripted encounters belong to the
+  -- game. The follower controller only changes overworld presentation.
 
   local api = {
     version = "1.5.0-ex",

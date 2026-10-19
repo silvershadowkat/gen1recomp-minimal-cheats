@@ -77,6 +77,8 @@ for _,k in ipairs({"hp","atk","def","spe","spa","spd"}) do eq(p.mon.ivs[k],31,"I
 Collision._widthCells,Collision._heightCells=8,8
 Collision._grid={};for i=1,64 do Collision._grid[i]=0 end
 Player.reset(3,3,"down"); Field.locked=false
+game.data={maps={TEST={mapType=1,coordEvents={}}}}
+shared.set("fly_badge_check",false)
 eq(shared.gen3ToggleFly(),true,"take off")
 eq(shared.gen3Flying,true)
 Player.update(game,{isDown=function(_,key)return key=="right"end})
@@ -85,6 +87,17 @@ eq(Player.cellX,4,"flight step")
 eq(hook("save.write",function()return true end,game),false,"airborne save blocked")
 shared.gen3ReturnToGround();eq(Player.cellX,3,"return to takeoff")
 eq(shared.gen3Flying,false);eq(hook("save.write",function()return true end,game),true,"landed save allowed")
+local def=game.data.maps.TEST
+Collision._mapDef=def
+eq(shared.gen3FlightReachable({x=3,y=3},5,3),true,"walkable flight landing")
+for y=0,7 do def.coordEvents[#def.coordEvents+1]={x=4,y=y,scriptKey="STORY_GATE"}end
+eq(shared.gen3FlightReachable({x=3,y=3},5,3),false,"active story trigger barrier")
+def.coordEvents={}
+for y=0,7 do Collision._warps[y*1024+4]={}end
+eq(shared.gen3FlightReachable({x=3,y=3},5,3),false,"flight cannot skip a warp boundary")
+Collision._warps={}
+eq(shared.gen3FlightReachable({x=3,y=3},5,3),true,"cleared story gate permits landing")
+Collision._mapDef=nil
 local rows=hook("ui.start_menu.items",function(_,rows)return rows end,game,{})
 eq(rows[1].id,"silvershadow","menu entry")
 shared.openGen3Options()

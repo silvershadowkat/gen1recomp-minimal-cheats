@@ -160,7 +160,7 @@ end
 local function storeFor(game, kind)
   if kind == "pc" then
     game.save.pcItems = game.save.pcItems or {}
-    return game.save.pcItems, pcOrder(game.save)
+    return game.save.pcItems, Bag.pcOrder(game.save, game.data)
   end
   game.save.inventory = game.save.inventory or {}
   return game.save.inventory, Bag.order(game.save, game.data)
@@ -185,9 +185,7 @@ local function addQuantity(game, kind, id, qty)
     if not Bag.add(game.save, id, qty, game.data) then return false, "full" end
   else
     local cap = (game.data.field and game.data.field.pcItemCap) or 50
-    if owned == 0 and countStacks(store) >= cap then return false, "full" end
-    store[id] = owned + qty
-    ensureOrdered(order, id)
+    if not Bag.pcAdd(game.save,id,qty,game.data,cap) then return false,"full" end
   end
   return true
 end
@@ -199,8 +197,12 @@ local function setQuantity(game, kind, id, qty)
   if qty < 1 or qty > 99 then return false, "quantity" end
   local store, order = storeFor(game, kind)
   if not store[id] then return false, "missing" end
-  store[id] = qty
-  ensureOrdered(order, id)
+  local change = qty - store[id]
+  if change > 0 then return addQuantity(game,kind,id,change) end
+  if change < 0 then
+    if kind == "bag" then Bag.remove(game.save,id,-change,game.data)
+    else Bag.pcRemove(game.save,id,-change,game.data) end
+  end
   return true
 end
 
@@ -478,8 +480,9 @@ local function itemEditor(game, opts)
           game.stack:push(ChoiceBox.new(game, function(yes)
             if not yes then return end
             local store, order = storeFor(game, kind)
-            store[item.value] = nil
-            removeFromOrder(order, item.value)
+            local qty = store[item.value] or 0
+            if kind == "bag" then Bag.remove(game.save,item.value,qty,game.data)
+            else Bag.pcRemove(game.save,item.value,qty,game.data) end
             project()
           end))
         end,
@@ -521,20 +524,9 @@ return function()
   mod.content.constants:patch("bagSize", 999)
   mod.content.field:patch("pcItemCap", 999)
 
-  mod.content.screens:register("BagMenu", { new = function(game, opts)
-    return decorateBag(require("src.ui.BagMenu").new(game, opts), game, opts)
-  end })
+  -- Keep the native field/battle bags and PC deposit/withdraw lists intact.
+  -- The editor is a separate screen, never a replacement inventory UI.
   mod.content.screens:register(ITEM_EDITOR_SCREEN, { new = itemEditor })
-
-  mod.events:on("game.ready", function()
-    local ListMenu = require("src.ui.ListMenu")
-    if ListMenu._silverShadowPcLists then return end
-    ListMenu._silverShadowPcLists = true
-    local baseNew = ListMenu.new
-    ListMenu.new = function(game, title, items, opts)
-      return decoratePcList(baseNew(game, title, items, opts), game)
-    end
-  end)
 
   mod.exports.usefulBag = {
     classify = classify,
