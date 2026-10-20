@@ -1,4 +1,4 @@
--- SilverShadow Mods 3.1.9
+-- SilverShadow Mods 3.1.10
 -- One entry point, deterministic module order, and one shared service table.
 
 return function(mod)
@@ -108,5 +108,5 @@ return function(mod)
   end
   if shared.gameVersion=="yellow" then loadModule("modules/yellow_companion.lua",shared) end
   mod.exports.silvershadow = shared
-  mod.log:info("SilverShadow Mods 3.1.9 loaded for Gen %s", shared.generation)
+  mod.log:info("SilverShadow Mods 3.1.10 loaded for Gen %s", shared.generation)
 end

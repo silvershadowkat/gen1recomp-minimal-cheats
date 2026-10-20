@@ -1,3 +1,7 @@
+# 3.1.10 — Post-catch nickname prompt
+
+- Keep Gen 1 nickname YES/NO prompts on the modern 256×192 canvas when they appear above battle dialogue. Preserve native choice callbacks, caught Pokemon storage, Pokedex registration and name-entry screens. Party and PC confirmations retain their own layout.
+
 # 3.1.9 — Native bag pouches and battle item messages
 
 - Move SUMMON immediately above MODS in the shared Gen 1/2 Start menu.

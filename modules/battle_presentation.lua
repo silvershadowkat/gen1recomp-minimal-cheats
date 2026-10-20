@@ -30,7 +30,12 @@ local function battleChoice(state)
   if gen2 or getmetatable(state)~=ChoiceBox then return false end
   local states=state.game and state.game.stack and state.game.stack.states or {}
   for i,s in ipairs(states)do
-    if s==state then return i>1 and getmetatable(states[i-1])==B end
+    if s==state then
+      local below=states[i-1]
+      -- Caught-Pokemon naming uses Battle -> TextBox -> ChoiceBox.
+      -- Share the text's canvas without admitting Party/PC confirmations.
+      return below~=nil and (getmetatable(below)==B or battleText(below))
+    end
   end
   return false
 end
@@ -588,8 +593,8 @@ local function statsCard(game,mon,name)
 end
 shared.battleStatsCard=statsCard
 if not gen2 then
-  -- Only direct battle choices share the modern canvas. Choices nested in
-  -- Party/Bag/PC screens retain their own native placement and input rules.
+  -- Direct battle choices and choices over battle dialogue share its canvas.
+  -- Party/PC choices retain their own native placement and input rules.
   local choiceDraw=ChoiceBox.draw
   local function modernChoice(self)return battleChoice(self)and enabled()end
   ChoiceBox.isWideBattleLayout=modernChoice
