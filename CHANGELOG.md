@@ -1,3 +1,10 @@
+# 3.1.5 — Evolution and move learning
+
+- Add independently toggled Gen 1/2 evolution presentation, native old/new-form timing, high-contrast silhouettes, and clean full 4:3 composition using imported FRLG assets.
+- Carry native move-learning prompts, choices, forget lists and results into the same presentation, including type colors, PP and move details. Preserve native callbacks and existing HM/reusable-machine behavior.
+- Decode the money glyph as ¥ instead of the imported `<ED>` alias. Raise the opponent's Gen 1 intro Poké Balls without moving the player's row.
+- Keep Gen 3 and saved progress untouched.
+
 # 3.1.4 — Followers across doors and routes
 
 - Gather Gen 1/2 followers at the arrival tile after a warp; do not invent a trail through houses or walls.

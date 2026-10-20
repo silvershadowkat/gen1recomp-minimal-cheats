@@ -74,6 +74,7 @@ local defs = {
   battle = function()
     return {
       toggle("MODERN HUD", "modern_battle_hud", true),
+      toggle("MODERN EVOLUTION", "modern_evolution_screen", true),
       toggle("INSTANT TEXT", "instant_text", true),
       choice("EXP MULT", "exp_multiplier", shared.EXP_MULTIPLIERS, 1, multiplier),
       choice("DAMAGE", "damage_multiplier", shared.DAMAGE_MODES, 1, multiplier),

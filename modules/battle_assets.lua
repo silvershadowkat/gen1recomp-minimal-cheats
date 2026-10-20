@@ -181,6 +181,37 @@ function A.pic(data,species,back,mon)
   A.images[key]=image;A.owned[image]=true
   return image
 end
+-- Reuse imported evolution wallpaper and message chrome at their native
+-- pixel size. Extend the plain middle; never stretch glyphs or border tiles.
+function A.evolutionBackground(flashing)
+  if not A.init()then return end
+  if A.evolutionBg==nil then
+    A.evolutionBg=false
+    local raw=bytes("pokemon/battle/terrain_bg_building.rgba")
+    if raw and #raw==256*160*4 then
+      -- GBA's right padding and bottom textbox area are not wallpaper.
+      -- Extend edge pixels once, retaining the source's exact pixel grid.
+      local rows={}
+      for y=0,143 do
+        local start=math.min(y,111)*256*4+1
+        local row=raw:sub(start,start+240*4-1)
+        rows[#rows+1]=row:sub(1,4):rep(8)..row..row:sub(-4):rep(8)
+      end
+      A.evolutionBg=g.newImage(love.image.newImageData(256,144,"rgba8",table.concat(rows)))
+      A.evolutionBg:setFilter("nearest","nearest")
+    end
+  end
+  g.setColor(.86,.91,.96,1);g.rectangle("fill",0,0,256,192)
+  if A.evolutionBg then
+    if flashing then g.setColor(.20,.28,.42,1)else g.setColor(1,1,1,1)end
+    region(A.evolutionBg,0,0,256,144,0,0)
+  end
+  g.setColor(1,1,1,1)
+  region(C.textbox,0,112,120,48,0,144)
+  region(C.textbox,112,112,8,48,120,144)
+  region(C.textbox,112,112,8,48,128,144)
+  region(C.textbox,120,112,120,48,136,144)
+end
 shared.battleAssets=A
 -- FireRed's ROM trainer-picture IDs. Only shared characters/classes are
 -- mapped: Johto-only protagonists, leaders and rivals retain their own art.

@@ -393,7 +393,8 @@ local function decoded(b,line)
       local ch=e.seq;local code=e.code
       -- The imported table also lists Japanese aliases for the same byte.
       -- Retain Latin glyphs instead of letting those later aliases win.
-      if ch and code and (not reverse[code] or ch:match("^[ -~]$"))then reverse[code]=ch end
+      if ch and code and (not reverse[code] or ch:match("^[ -~]$")
+        or ch=="¥" or ch=="é" or ch=="♂" or ch=="♀")then reverse[code]=ch end
     end
   end
   local text={};for _,code in ipairs(line or {})do text[#text+1]=reverse[code] or " "end
@@ -541,7 +542,7 @@ local function draw(b)
     bottomQuad=bottomQuad or g.newQuad(0,cut,304,144-cut,304,144)
     g.draw(surface,fieldQuad,0,gen2 and 32 or 40)
     if not gen2 and b.introBalls and A.ready then
-      if b.kind=="trainer"then A.chrome.drawPartyBar(b.enemyParty,112,72,true)end
+      if b.kind=="trainer"then A.chrome.drawPartyBar(b.enemyParty,112,56,true)end
       A.chrome.drawPartyBar(b.playerParty or b.game.save.party,136,128,false)
     elseif gen2 and b.ballRows and A.ready then
       if b.ballRows.enemy then A.chrome.drawPartyBar(b.battle and b.battle.enemyParty,112,56,true)end

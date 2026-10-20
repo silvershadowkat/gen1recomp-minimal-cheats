@@ -86,6 +86,7 @@ local menuDefs = {
   battle = function()
     return {
       toggle("MODERN HUD", "modern_battle_hud", true),
+      toggle("MODERN EVOLUTION", "modern_evolution_screen", true),
       toggle("INSTANT TEXT", "instant_text", true),
       toggle("INFINITE HP", "infinite_hp", false),
       toggle("INFINITE PP", "infinite_pp", false),
