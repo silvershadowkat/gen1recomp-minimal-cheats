@@ -121,15 +121,33 @@ local second={type1=10,type2=10,mon={hp=20}}
 local preview={player=user,enemy=foe,battlers={[0]=user,[1]=foe,[3]=second}}
 local info=assert(shared.gen3MoveInfo)
 eq(info(preview,user,3).effect,'TYPE 2x','Fire into Grass')
+eq(info(preview,user,3).power,'80','base power times type without STAB')
+user.type1=10
+eq(info(preview,user,3).power,'120','base power times STAB times weakness')
+foe.type1,foe.type2=10,10
+eq(info(preview,user,3).power,'30','STAB with resistance')
+foe.type2=11
+eq(info(preview,user,3).power,'15','STAB with double resistance')
+foe.type1,foe.type2=12,6
+eq(info(preview,user,3).power,'240','STAB with double weakness')
+foe.ability='FLASH_FIRE'
+eq(info(preview,user,3).power,'0','ability immunity')
+foe.ability=nil;foe.type1,foe.type2=12,12
+user.expTransform={type1=11,type2=11}
+eq(info(preview,user,3).power,'80','transformed types replace original STAB')
+user.expTransform=nil;user.type1=nil
 eq(info(preview,user,2).effect,'STATUS','Growl is not damaging')
+eq(info(preview,user,2).power,'--','status has no power')
 foe.type2=5;eq(info(preview,user,3).effect,'TYPE 1x','dual-type product')
 preview.double=true
 eq(info(preview,user,3).effect,'PICK FOE','no guessed target in doubles')
+eq(info(preview,user,3).power,'?','no guessed power before selecting target')
 eq(info(preview,user,3,3).effect,'TYPE 1/2x','selected right target')
 foe.type1,foe.type2=5,5
 eq(info(preview,user,4).effect,'TYPE 2x','spread identical matchups')
 foe.type1,foe.type2=12,12;eq(info(preview,user,4).effect,'VARIES','spread different matchups')
 second.ability='WATER_ABSORB';eq(info(preview,user,4,3).effect,'IMMUNE','absorbing ability')
+eq(info(preview,user,4,3).power,'0','selected immune target power')
 preview.double=false;foe.type1,foe.type2=7,7
 eq(info(preview,user,1).effect,'TYPE 0x','Normal into Ghost')
 foe.expIdentified=true;eq(info(preview,user,1).effect,'TYPE 1x','Foresight')
@@ -139,6 +157,8 @@ user.mon.moves[1]=6;preview.weather='RAIN'
 eq(info(preview,user,1).type,11,'Weather Ball in rain')
 second.ability='CLOUD_NINE';eq(info(preview,user,1).type,0,'weather suppression')
 user.mon.moves[1]=7;eq(info(preview,user,1).effect,'SPECIAL','fixed damage has no false multiplier')
+eq(info(preview,user,1).power,'--','fixed damage is not base power')
+eq(shared.adjustedMovePower(50,true,.25),'18.75','fractional comparison value')
 eq(user.mon.hp,20,'preview never changes HP');eq(user.mon.pp[1],35,'preview never spends PP')
 Moves.get=oldGet
 -- Real profile/National Dex gates with deterministic local encounter fixtures.

@@ -13,7 +13,9 @@ local function info(st,attacker,slot,target)
   local mv=mon and mon.moves and mon.moves[slot]
   if not mv or mv==0 or mv==''then return end
   local def=Moves.get(mv)
+  local power=def.power
   local typ=mon.moveTypes and mon.moveTypes[slot]or def.type
+  if def.id=='HIDDEN_POWER'then power=Damage.hiddenPower(mon)end
   if not(mon.moveTypes and mon.moveTypes[slot]~=nil)then
     if def.id=='HIDDEN_POWER'then local p;p,typ=Damage.hiddenPower(mon)
     elseif def.id=='WEATHER_BALL'then
@@ -32,6 +34,7 @@ local function info(st,attacker,slot,target)
     or def.id=='FISSURE'or def.id=='GUILLOTINE'or def.id=='HORN_DRILL'or def.id=='SHEER_COLD'
     then effect='SPECIAL'
   end
+  local multiplier
   local function matchup(b)
     if not b then return end
     local t=b.expTransform or b
@@ -39,24 +42,27 @@ local function info(st,attacker,slot,target)
     local a=ability(b)
     if a=='LEVITATE'and typ==4 or a=='FLASH_FIRE'and typ==10
       or a=='WATER_ABSORB'and typ==11 or a=='VOLT_ABSORB'and typ==13
-      or a=='WONDER_GUARD'and n<=1 then return 'IMMUNE'end
-    return 'TYPE '..(n==.25 and '1/4'or n==.5 and '1/2'or tostring(n):gsub('%.0$',''))..'x'
+      or a=='WONDER_GUARD'and n<=1 then return 'IMMUNE',0 end
+    return 'TYPE '..(n==.25 and '1/4'or n==.5 and '1/2'or tostring(n):gsub('%.0$',''))..'x',n
   end
   if not effect then
-    if not(st and st.double)then effect=matchup(st and st.enemy)
-    elseif target~=nil then effect=matchup(st.battlers and st.battlers[target])
+    if not(st and st.double)then effect,multiplier=matchup(st and st.enemy)
+    elseif target~=nil then effect,multiplier=matchup(st.battlers and st.battlers[target])
     elseif def.target==8 or def.target==32 or def.target==4 then
       for _,id in ipairs(def.target==32 and {0,1,2,3}or {1,3})do
         local b=st.battlers and st.battlers[id]
         if b and b~=attacker and not(st.absent and st.absent[id])and(b.mon.hp or 0)>0 then
-          local e=matchup(b)
-          if effect and effect~=e then effect='VARIES';break end
-          effect=e
+          local e,n=matchup(b)
+          if effect and effect~=e then effect='VARIES';multiplier=nil;break end
+          effect,multiplier=e,n
         end
       end
     else effect='PICK FOE'end
   end
+  local own=attacker.expTransform or attacker
+  local stab=typ==own.type1 or typ==own.type2
   return {type=typ,color=shared.moveTypeColor(typ)or shared.typeColors.NORMAL,effect=effect or 'TYPE ?',def=def,
+    power=shared.adjustedMovePower(power,stab,multiplier),
     pp=mon.pp and mon.pp[slot]or 0,maxPp=mon.maxPp and mon.maxPp[slot]or def.pp or 0}
 end
 shared.gen3MoveInfo=info
@@ -109,12 +115,13 @@ Ui.draw=function(...)
     local bg={0,0,0,0};local shadow=Font.COLOR.NORMAL.shadow
     local function line(s,y,color)
       local rs=Chrome.layout()=='rs'
-      fontDraw(s,rs and 188 or 176,rs and y-6 or y,
+      fontDraw(s,rs and 188 or 176,rs and y-4 or y,
         {small=true,colors={fg=color or Font.COLOR.NORMAL.fg,shadow=shadow,bg=bg}})
     end
-    line(('PP %d/%d'):format(selected.pp,selected.maxPp),117)
-    line(Types.name(selected.type),129,selected.color)
-    line(selected.effect,141)
+    line(('PP %d/%d'):format(selected.pp,selected.maxPp),115)
+    line(Types.name(selected.type),124,selected.color)
+    line(selected.effect,133)
+    line('PWR '..selected.power,142)
   end
   return result
 end

@@ -1,3 +1,9 @@
+# 3.1.8 — Move learning cancellation and adjusted power
+
+- Make B accept the stop-learning confirmation in all three generations, so repeated B presses leave the move-learning flow instead of looping. A on NO still resumes learning; native completion callbacks, item consumption and unrelated YES/NO choices are preserved.
+- Show PWR in the modern Gen 1/2 and Gen 3 move-info window: base power × STAB × type effectiveness. Use current battler types, including transformations, and Gen 3 target/ability immunities. Mixed or unselected double-battle targets show `?`; status and nonstandard base-power moves show `--`.
+- Keep PP, colored type and matchup text, with four aligned rows. PWR is a comparison value, not HP damage; it excludes Attack/Defense, random rolls, critical hits, weather and damage-cheat multipliers.
+
 # 3.1.7 — Local collection, Summon and capture artwork
 
 - Keep Gen 1's modern battle canvas behind trainer-switch and post-faint YES/NO prompts, with a matching popup and native choice behavior. Preserve native Party/Bag layouts.

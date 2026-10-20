@@ -1,7 +1,7 @@
 local mod = ...
 
 local M = {
-  version = "3.1.7",
+  version = "3.1.8",
   game = nil,
   linkBattleActive = false,
   startItems = {},

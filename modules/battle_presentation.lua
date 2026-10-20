@@ -401,19 +401,27 @@ local typeColors=shared.typeColors
 local function moveInfo(b,move)
   local data=b.data or b.game.data
   local def=move and data.moves[move.id]
-  if not def then return "",nil,""end
+  if not def then return "",nil,"","--"end
   local typ=def.type;local power=def.power or 0
   if gen2 and move.id=="HIDDEN_POWER"then power,typ=b.battle:hiddenPower(b.battle.player)end
   local display=tostring(typ or ""):gsub("_TYPE$","")
-  if power==0 then return display,typeColors[display],"STATUS"end
-  if power==1 then return display,typeColors[display],"SPECIAL"end
+  if power==0 then return display,typeColors[display],"STATUS","--"end
+  if power==1 then return display,typeColors[display],"SPECIAL","--"end
   local mult
   if gen2 then
     mult=require("src.battle.gen2.Damage").typeMultiplier(typ,b.battle:battlerTypes(b.battle.enemy),b.battle:matchupsAgainst(b.battle.enemy))
   else mult=require("src.battle.TypeChart").effectiveness(typ,b.enemy.curTypes)end
   local text=mult==0 and "NO EFFECT" or mult<=2 and "TYPE 1/4x" or mult<=5 and "TYPE 1/2x"
     or mult>20 and "TYPE 4x" or mult>10 and "TYPE 2x" or "TYPE 1x"
-  return display,typeColors[display],text
+  local ownTypes=gen2 and b.battle:battlerTypes(b.battle.player)or b.player.curTypes
+  local stab=false
+  for _,own in ipairs(ownTypes or{})do if own==typ then stab=true;break end end
+  local factor=mult==2 and .25 or mult/10
+  if not gen2 then
+    factor=1
+    for _,row in ipairs(require("src.battle.TypeChart").rows(typ,b.enemy.curTypes))do factor=factor*row/10 end
+  end
+  return display,typeColors[display],text,shared.adjustedMovePower(power,stab,factor)
 end
 shared.battleMoveInfo=moveInfo
 local function decoded(b,line)
@@ -468,10 +476,11 @@ local function romBottom(b)
       local max=gen2 and require("src.battle.gen2.Mon").maxPpOf(move,data)
         or require("src.pokemon.Pokemon").maxPP(def.pp,move.ppUps)
       g.setColor(1,1,1,1);g.rectangle("fill",180,151,68,35)
-      local typ,color,effect=moveInfo(b,move)
-      txt(("PP %d/%d"):format(move.pp or 0,max),184,149,false,true)
-      A.text(typ,184,161,false,true,color)
-      txt(effect,184,173,false,true)
+      local typ,color,effect,power=moveInfo(b,move)
+      txt(("PP %d/%d"):format(move.pp or 0,max),184,147,false,true)
+      A.text(typ,184,156,false,true,color)
+      txt(effect,184,165,false,true)
+      txt("PWR "..power,184,174,false,true)
     end
   elseif gen2 then
     b:syncTyper()

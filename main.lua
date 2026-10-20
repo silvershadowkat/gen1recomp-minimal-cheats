@@ -1,4 +1,4 @@
--- SilverShadow Mods 3.1.7
+-- SilverShadow Mods 3.1.8
 -- One entry point, deterministic module order, and one shared service table.
 
 return function(mod)
@@ -23,6 +23,7 @@ return function(mod)
   local shared = loadModule("modules/core.lua")
   loadModule("modules/collection_habitats.lua",shared)
   loadModule("modules/type_colors.lua",shared)
+  loadModule("modules/move_power.lua",shared)
   loadModule("modules/follower_transitions.lua",shared)
   loadModule("modules/shader_pixel_scale.lua",shared)
   loadModule("modules/boot_presentation.lua",shared)
@@ -96,6 +97,7 @@ return function(mod)
     or shared.generation == 2 and gen2Modules or gen1Modules
   for _, path in ipairs(modules) do loadModule(path, shared) end
   loadModule("modules/instant_text.lua",shared)
+  loadModule("modules/move_learning_cancel.lua",shared)
   if shared.generation~=3 then
     loadModule("modules/battle_assets.lua",shared)
     loadModule("modules/capture_ball_presentation.lua",shared)
@@ -106,5 +108,5 @@ return function(mod)
   end
   if shared.gameVersion=="yellow" then loadModule("modules/yellow_companion.lua",shared) end
   mod.exports.silvershadow = shared
-  mod.log:info("SilverShadow Mods 3.1.7 loaded for Gen %s", shared.generation)
+  mod.log:info("SilverShadow Mods 3.1.8 loaded for Gen %s", shared.generation)
 end

@@ -1,12 +1,12 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.7 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.8 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
 ## Install
 
-Use the packaged silvershadow-mods-v3.1.7.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.1.8.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 
@@ -141,6 +141,14 @@ The game still handles timing, cancelability, item consumption, species/stat cha
 ### Start-menu cleanup in 3.1.6
 
 The paid **HEAL ¥…** Start-menu shortcut is retired. PC access and the separate healing cheats remain available.
+
+### Move learning and power display in 3.1.8
+
+Pressing **B** at “Abandon/Stop learning?” now confirms that you want to stop. Repeated B presses can leave the full move-learning sequence without looping. You can still select **NO with A** to reconsider. This works with both native and modern learning screens in all three generations.
+
+The battle move-info window adds **PWR = base power × STAB × type effectiveness**. For example, Ember is 40; a Fire-type user gets 60, or 120 against a Fire-weak target. Immunities show 0. The value uses current battler types and the selected Gen 3 target, including absorbing/immune abilities. `?` means a target is not selected or spread targets have different matchups; `--` means status or a move without ordinary numeric base power. Hidden Power uses its calculated power and type.
+
+PWR is a comparison value, not predicted HP damage. It does not include Attack/Defense, damage-formula rounding, weather, critical hits, random rolls or damage cheats, and it does not roll RNG or execute a move.
 
 ### Collection mapping in 3.1.7
 
