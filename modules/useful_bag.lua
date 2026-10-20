@@ -298,112 +298,94 @@ local function openSort(game, list, project)
   }, { tx = 9, ty = 9 }))
 end
 
+-- Filter the native rows, retaining physical stack slots for use/toss/swap.
+-- The save remains the engine's flat inventory; no items are moved or copied.
 local function decorateBag(list, game, opts)
-  local battle = opts and opts.battle
-  -- Gen 1 battle bags are deliberately one complete inventory list. The
-  -- engine has already attached the battle-aware USE behavior to these rows;
-  -- projecting that list into one field pocket can hide Poke Balls (and other
-  -- usable items) from the current battle. Keep separated pockets for the
-  -- overworld bag only.
-  if battle then
-    list.wrap = shared.bool("cursor_wrap", true)
-    return list
-  end
-  local pocketIndex = 1
-
-  local function project()
-    local selected = list.items[list.index] and list.items[list.index].value
+  if list.script then return list end -- leave the catching tutorial alone
+  local memory = opts and opts.battle and "_silverBattlePocket" or "_silverFieldPocket"
+  local pocketIndex = game[memory] or (opts and opts.battle and 3 or 1)
+  local projected
+  local function project(reset)
+    local selected = not reset and list.items[list.index]
     local rows = {}
-    for _, id in ipairs(pocketIds(game, POCKETS[pocketIndex].id)) do
-      rows[#rows + 1] = makeRow(game, id)
-    end
-    list.items, list.title = rows, POCKETS[pocketIndex].label
-    list.wrap = shared.bool("cursor_wrap", true)
-    list.footer = "L/R SEL:ADD ST:SORT"
-    list.index, list.scroll = 1, 0
-    if selected then
-      for index, row in ipairs(rows) do if row.value == selected then list.index = index end end
-    end
-  end
-
-  local function switch(delta)
-    pocketIndex = ((pocketIndex - 1 + delta) % #POCKETS) + 1
-    list.swapIndex = nil
-    project()
-  end
-
-  -- The footer's L/R refers to the physical shoulder buttons.  The engine
-  -- normally reserves those for its speed ladder, so claim them at the open
-  -- bag state before Game's global shortcut handler can see the press.  Keep
-  -- D-pad left/right too for the cartridge-style pocket navigation.
-  local baseGamepadPressed = list.onGamepadPressed
-  list.onGamepadPressed = function(self, button)
-    if button == "leftshoulder" then switch(-1); return end
-    if button == "rightshoulder" then switch(1); return end
-    if baseGamepadPressed then return baseGamepadPressed(self, button) end
-    -- Defining this state callback makes Game treat the bag as the owner of
-    -- every pad press. Forward everything we do not consume back into the
-    -- normal Input map, or A/B/START/SELECT would never reach ListMenu.
-    if game.input and type(game.input.gamepadpressed) == "function" then
-      return game.input:gamepadpressed(nil, button)
-    end
-  end
-
-  local baseUpdate = list.update
-  list.update = function(self, dt)
-    local input = game.input
-    if input:wasPressed("left") then switch(-1); return end
-    if input:wasPressed("right") then switch(1); return end
-    if input:wasPressed("start") then openSort(game, self, project); return end
-    if input:wasPressed("select") then
-      local pocket = POCKETS[pocketIndex]
-      if not shared.gameplayAllowed() then
-        self.footer = "Unavailable in link play."
-      elseif pocket.id == "machines" or pocket.id == "key" then
-        self.footer = "TM/HM & KEY excluded."
-      else
-        openCatalog(game, pocket, "bag", project)
+    for _, row in ipairs(Bag.rows(game.save, game.data)) do
+      if classify(game.data, row.id) == POCKETS[pocketIndex].id then
+        local def = game.data.items[row.id]
+        local key = (def and def.keyItem) or row.id:find("^HM_")
+        rows[#rows + 1] = {value=row.id, slot=row.slot, nativeIndex=row.index, stack=row.count,
+          count=not key and row.count or nil, label=machineLabel(game,row.id)}
       end
+    end
+    rows[#rows + 1] = {cancel=true,label="CANCEL"}
+    list.items, projected = rows, rows
+    list.title = POCKETS[pocketIndex].label
+    list.pocketId = POCKETS[pocketIndex].id
+    list.index = reset and 1 or math.min(list.index,#rows)
+    if selected then
+      for i,row in ipairs(rows) do
+        if (selected.cancel and row.cancel) or (selected.slot and
+            selected.slot==row.slot and selected.value==row.value) then list.index=i;break end
+      end
+    end
+    local count = list.cursorRows or list.rows
+    list.scroll = math.max(0,math.min(reset and 0 or list.scroll,list.index-1,#rows-count))
+    if list.index-list.scroll>count then list.scroll=list.index-count end
+  end
+  local function swap(item)
+    if not item or item.cancel then return end
+    if not list.swapIndex then list.swapIndex=list.index;return end
+    local first=list.items[list.swapIndex]
+    if first and first.nativeIndex~=item.nativeIndex then
+      Bag.swap(game.save,first.nativeIndex,item.nativeIndex,game.data)
+      require("src.core.Sound").play(game.data,"Swap")
+      list.swapIndex=nil
+      project()
+    end
+  end
+  list.onSelectKey=swap
+  local choose=list.onChoose
+  list.onChoose=function(item,...)
+    if list.swapIndex and item and not item.cancel then return swap(item) end
+    return choose(item,...)
+  end
+  local update=list.update
+  list.update=function(self,dt)
+    -- Native use/toss callbacks can replace their list; reproject before input.
+    project()
+    local input=game.input
+    local delta=input:wasPressed("left") and -1 or input:wasPressed("right") and 1
+    if delta then
+      pocketIndex=((pocketIndex-1+delta)%#POCKETS)+1
+      game[memory]=pocketIndex
+      self.swapIndex,self.hollowIndex=nil,nil
+      self.hold={};self.cursorBlank=0
+      project(true)
       return
     end
-    return baseUpdate(self, dt)
+    return update(self,dt)
   end
-
-  list.onSelectKey = function(item, current)
-    if not item then return end
-    if not current.swapIndex then current.swapIndex = current.index; return end
-    local first = current.items[current.swapIndex]
-    if first then
-      swapById(Bag.order(game.save, game.data), first.value, item.value)
+  local draw=list.draw
+  list.draw=function(self)
+    if self.items~=projected then project() end
+    local Font=require("src.render.Font")
+    local labels={}
+    -- Native item-box names have 13 glyph columns, less than full PC lists.
+    for i,row in ipairs(self.items) do
+      labels[i]=row.label
+      local spans=Font.split(row.label)
+      local n=Font.spansFitting(spans,104)
+      if n<#spans then row.label=row.label:sub(1,spans[math.max(1,n-1)].to).."." end
     end
-    current.swapIndex = nil
-    project()
+    love.graphics.setColor(1,1,1,1)
+    Font.drawBox(4,0,16,3)
+    love.graphics.setColor(0,0,0,1)
+    love.graphics.polygon("fill",40,12,45,9,45,15)
+    love.graphics.polygon("fill",150,12,145,9,145,15)
+    Font.draw(self.title,96-math.floor(Font.width(self.title)/2),8)
+    draw(self)
+    for i,row in ipairs(self.items) do row.label=labels[i] end
   end
-
-  -- Keep the engine's complete USE/TOSS behavior, then add one isolated
-  -- action to its submenu for ordinary items. Battle and link menus never
-  -- receive an editor action.
-  local baseChoose = list.onChoose
-  list.onChoose = function(item, current)
-    baseChoose(item, current)
-    if not item or current.swapIndex
-        or not shared.gameplayAllowed()
-        or not editable(game.data, item.value) then return end
-    local menu = game.stack:top()
-    if not menu or menu == current or type(menu.items) ~= "table" then return end
-    local use, toss = false, false
-    for _, row in ipairs(menu.items) do
-      use = use or row.label == "USE"
-      toss = toss or row.label == "TOSS"
-    end
-    if not (use and toss) then return end
-    menu.items[#menu.items + 1] = {
-      label = "QUANTITY",
-      onSelect = function() openQuantity(game, "bag", item.value, project) end,
-    }
-    menu.th = math.max(menu.th or 0, 7)
-  end
-  project()
+  project(true)
   return list
 end
 
@@ -524,8 +506,13 @@ return function()
   mod.content.constants:patch("bagSize", 999)
   mod.content.field:patch("pcItemCap", 999)
 
-  -- Keep the native field/battle bags and PC deposit/withdraw lists intact.
-  -- The editor is a separate screen, never a replacement inventory UI.
+  -- Decorate the native bag instance, keeping its complete item-use flow.
+  local BagMenu = require("src.ui.BagMenu")
+  local newBag = BagMenu.new
+  BagMenu.new = function(game, opts, ...)
+    return decorateBag(newBag(game, opts, ...), game, opts)
+  end
+  -- The PC editor remains separate from ordinary item use.
   mod.content.screens:register(ITEM_EDITOR_SCREEN, { new = itemEditor })
 
   mod.exports.usefulBag = {

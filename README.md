@@ -1,12 +1,14 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.8 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.9 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
+Version 3.1.9 adds Left/Right pouches to the native Gen 1 field Item and battle Bag menus: Items, Medicine, Poké Balls, TMs/HMs, Battle Items, and Key Items. Battle bags initially open on Poké Balls; each context remembers its last pouch for the session. SELECT still marks an item for reordering; SELECT or A completes the swap. Native USE, TOSS, per-stack quantities, CANCEL and B behavior are retained. SUMMON sits immediately above MODS in the shared Gen 1/2 Start menu. Invalid battle-item messages (such as Moon Stone) retain the modern battle canvas and dialogue box.
+
 ## Install
 
-Use the packaged silvershadow-mods-v3.1.8.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.1.9.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 

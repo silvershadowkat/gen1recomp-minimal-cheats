@@ -13,6 +13,19 @@ local A=shared.battleAssets
 -- keeping imported Gen3 glyphs and sprites at one common source-pixel size.
 local W,H = 256,192
 local ChoiceBox=not gen2 and require("src.ui.ChoiceBox")
+local TextBox=not gen2 and require("src.render.TextBox")
+local function battleText(state)
+  if gen2 or getmetatable(state)~=TextBox then return false end
+  local found=false
+  for _,s in ipairs(state.game.stack.states)do
+    if getmetatable(s)==B then found=true
+    elseif found then
+      if s==state then return true end
+      if getmetatable(s)~=TextBox and not(s.itemBox and s.kind=='bag')then return false end
+    end
+  end
+  return false
+end
 local function battleChoice(state)
   if gen2 or getmetatable(state)~=ChoiceBox then return false end
   local states=state.game and state.game.stack and state.game.stack.states or {}
@@ -29,7 +42,7 @@ local function nativeOverlay()
   local found=false
   for _,state in ipairs(states)do
     if getmetatable(state)==B then found=true
-    elseif found and getmetatable(state)~=B.StatBox and not battleChoice(state)
+    elseif found and getmetatable(state)~=B.StatBox and not battleChoice(state) and not battleText(state)
       and not(state.itemBox and state.kind=='bag')then return true end
   end
   return false
@@ -439,6 +452,39 @@ local function decoded(b,line)
   return table.concat(text):gsub("<PK>","POKé"):gsub("<MN>","MON")
 end
 shared.battleDecodeText=decoded
+if not gen2 then
+  local function modernText(self) return battleText(self) and enabled() and A and A.init() end
+  local draw=TextBox.draw
+  local size=TextBox.uiSize
+  local wide=TextBox.isWideBattleLayout
+  local fill=TextBox.wantsFillScale
+  TextBox.isWideBattleLayout=function(self,...)
+    if modernText(self)then return true end
+    return wide and wide(self,...) or false
+  end
+  TextBox.uiSize=function(self,...)
+    if modernText(self)then return W,H end
+    if size then return size(self,...)end
+    return 160,144
+  end
+  TextBox.wantsFillScale=function(self,...)
+    if modernText(self)then return true end
+    return fill and fill(self,...) or false
+  end
+  TextBox.draw=function(self,...)
+    if not modernText(self)then return draw(self,...)end
+    g.push("all")
+    g.translate(0,H-160);g.scale(W/240,1)
+    A.chrome.drawPanel("message")
+    g.pop()
+    for i,line in ipairs(self.shown or{})do
+      if i>2 then break end
+      A.text(A.fit(decoded({data=self.game.data},line),228),12,
+        152+(i-1)*16+(i==1 and (self.scrollPx or 0)or 0),true)
+    end
+    if self:arrowVisible() and (self.blink or 0)%60<30 then A.text("v",240,172,true)end
+  end
+end
 local function romBottom(b)
   if not b:bottomUIVisible()then return end
   local moves=b.phase==(gen2 and "moves" or "moveSelect") or (not gen2 and b.phase=="mimicSelect")

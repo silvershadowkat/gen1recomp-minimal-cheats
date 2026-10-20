@@ -1,3 +1,10 @@
+# 3.1.9 — Native bag pouches and battle item messages
+
+- Move SUMMON immediately above MODS in the shared Gen 1/2 Start menu.
+- Add Left/Right pouches to Gen 1 field Item and battle Bag, using the PC item editor classifications. Keep native use/toss/cancel and stack-aware SELECT/A reordering; remember field and battle pouches separately. Begin battle bags on Poké Balls.
+- Fit long TM/HM labels inside the native item box.
+- Keep battle item messages on the modern 256×192 surface, including rejected Moon Stone use, without altering native item outcomes, party menus or disabled-HUD behavior.
+
 # 3.1.8 — Move learning cancellation and adjusted power
 
 - Make B accept the stop-learning confirmation in all three generations, so repeated B presses leave the move-learning flow instead of looping. A on NO still resumes learning; native completion callbacks, item consumption and unrelated YES/NO choices are preserved.
