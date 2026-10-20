@@ -1,12 +1,12 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.5 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.6 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
 ## Install
 
-Use the packaged silvershadow-mods-v3.1.5.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.1.6.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 
@@ -137,3 +137,7 @@ Validation: the ROM-free transition regression plus all version integration suit
 Gen 1 and Gen 2 have a **MODERN EVOLUTION** switch (on by default), independent of MODERN HUD. It presents native evolutions and full move-learning flows on a clean 256×192 canvas, using already imported FireRed/LeafGreen sprites, wallpaper, message frame and fonts. It covers battle and item evolution callers, Yes/No prompts, selecting a move to forget, and learning/cancellation messages. Move names and types use the shared type palette; the forget list shows PP, type, power and accuracy. Evolution silhouettes alternate on a darker backdrop before the final colored form.
 
 The game still handles timing, cancelability, item consumption, species/stat changes, move replacement and callbacks. Existing reusable-machine/HM replacement settings are retained. No ROM graphics are bundled, and missing cross-generation assets fall back to the native screens. Gen 3 is unchanged. This update also fixes the Gen 1 money-symbol alias and raises only the opponent's intro Poké Balls.
+
+### Start-menu cleanup in 3.1.6
+
+The paid **HEAL ¥…** Start-menu shortcut is retired. PC access and the separate healing cheats remain available.

@@ -1,3 +1,7 @@
+# 3.1.6 — Start-menu cleanup
+
+- Delete the paid Heal Anywhere module, removing its HEAL shortcut and field-machine rendering hooks from the code and release package. PC access and other healing tools are unchanged.
+
 # 3.1.5 — Evolution and move learning
 
 - Add independently toggled Gen 1/2 evolution presentation, native old/new-form timing, high-contrast silhouettes, and clean full 4:3 composition using imported FRLG assets.
