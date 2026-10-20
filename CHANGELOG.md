@@ -1,3 +1,10 @@
+# 3.1.1 — LCD shader pixel alignment
+
+- Remove retro-v3's tiny UV stretch in its loaded vertex shader so LCD grid lines keep a consistent phase and thickness. Applies to fresh and cached translations without modifying preset files.
+- Keep Shader FX intermediate canvases at explicit pixel resolution on high-DPI devices. This fixes uneven LCD grid lines and triangular shading caused by doubled render targets and resampling on the Nova.
+- Scope the correction to the shader pass; retain native world/UI canvas scaling and all preset choices. Restore the graphics constructor even if a shader fails.
+- Add focused regression coverage for target sizing, option preservation, idempotence and error cleanup.
+
 # 3.1.0 — Gen 3 / engine 0.3.91
 
 - Support all eleven Gen 1–3 games with generation-native module loading.

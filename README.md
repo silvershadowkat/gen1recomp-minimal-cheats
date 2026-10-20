@@ -1,12 +1,12 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.0 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.1 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
 ## Install
 
-Download silvershadow-mods-v3.1.0.zip from Releases and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.1.1.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 
@@ -21,6 +21,8 @@ Open **START → SILVERSHADOW**. Gen 3 uses native menus and data structures, in
 - **Free Fly:** take off/land from the movement menu; move over obstacles within the current map. BADGE CHECK and STORY GATES default on. The native Fly badge and either the Fly HM device with a healthy party helper or a healthy Fly user are required; landing must be clear and reachable from the takeoff point through ordinary ground without crossing warps, active event triggers, water, or blocking terrain. This is deliberately conservative around story barriers. RETURN TO GROUND restores the takeoff location. Saving is blocked while airborne. Map-boundary flight and levels above 100 are not supported in Gen 3.
 
 L/R page through long catalogues. Battle cheats default off; follower count defaults to one. Settings remain scoped by the engine's mod-save system.
+
+Version 3.1.1 keeps Shader FX intermediate canvases at explicit pixel resolution on high-DPI devices, avoiding uneven LCD grids and triangular shading from implicit DPI upscaling. It also removes retro-v3's tiny coordinate stretch from the loaded shader to keep grid-line thickness consistent. These corrections apply to all three generations and leave shader selection and parameters under your control; they do not add blur or modify preset files.
 
 Engine 0.3.91 includes **Shader FX** with LCD presets; the separate SilverShadow LCD mod is optional and should be disabled when using a built-in LCD preset.
 
