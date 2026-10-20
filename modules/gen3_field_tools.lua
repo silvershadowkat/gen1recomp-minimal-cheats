@@ -105,19 +105,15 @@ local useField=Use.useField
 Use.useField=function(s,bag,id,...)
   if id~=dex then return useField(s,bag,id,...)end
   if not shared.gameplayAllowed()or shared.gen3Flying then return false,"dexnav","Cannot use DexNav here."end
-  local candidates=shared.gen3LocalSpecies()
-  local uncaught={};for _,species in ipairs(shared.gen3Uncaught())do uncaught[species]=true end
-  for _,species in ipairs(candidates)do
-    if uncaught[species]then
-      local text="Searching for "..P.name(species)..". Walk into a normal wild encounter."
-      if Use.setUpOnFieldCallback(function()
-        shared.gen3DexNav(species,true);Use.showFieldMessage(text)
-      end)then return true,"on_field",nil end
-      shared.gen3DexNav(species,true)
-      return true,"dexnav",text
-    end
+  local candidates=shared.gen3LocalSpecies(true)
+  if #candidates==0 then
+    return false,"dexnav",#shared.gen3LocalSpecies()>0 and "All Pokemon in this area are caught."or"No wild Pokemon found here."
   end
-  return false,"dexnav",#candidates>0 and "All Pokemon in this area are caught."or"No wild Pokemon found here."
+  -- From the Bag, wait for its normal fade/field callback. A registered SELECT
+  -- use is already on the field and can begin the native battle immediately.
+  if Use.setUpOnFieldCallback(function()shared.gen3DexNav(nil)end)then return true,"on_field",nil end
+  if shared.gen3DexNav(nil)then return true,"on_field",nil end
+  return false,"dexnav","Cannot use DexNav here."
 end
 shared.gen3DexNavItem=dex
 -- Ruby/Sapphire's SET path normally coerces every item to a ROM number.

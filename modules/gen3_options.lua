@@ -202,14 +202,11 @@ local function partyEditor()
 end
 local function summon()
   local rows={}
-  for nat=1,386 do
+  for nat=1,shared.gen3CollectionLimit() do
     local species=Pokemon.speciesFromNational(nat)
     if species then rows[#rows+1]=action(string.format("%03d %s",nat,Pokemon.name(species)),function()
-      if not shared.gameplayAllowed() then return end
-      local s=shared.gen3Session()
-      local code=Party.giveMonToPlayer(s,species,25)
-      if code~=Party.MON_CANT_GIVE then shared.gen3Message("Pokemon sent to your party or PC.")
-      else shared.gen3Message("There is no room for this Pokemon.")end
+      if not shared.gameplayAllowed() or not shared.gen3CollectionAllows(species) then return end
+      if shared.gen3Summon(species)then pages={}end
     end)end
   end
   return rows
@@ -242,15 +239,10 @@ local function dexPicker(species)
   return rows
 end
 local function collection()
-  return {toggle("DEX HUNT 386","gen3_dex_hunt",true),
-    choice("HUNT EVERY N WILD","gen3_dex_rate",{1,10,20,50},20),
+  return {toggle("PREFER UNCAUGHT AREA","gen3_dex_hunt",true),
     toggle("NO TRADE EVOLUTIONS","gen3_no_trade",true),
     submenu("AREA DEXNAV",function()return dexPicker(shared.gen3LocalSpecies())end),
-    submenu("UNCAUGHT DEXNAV",function()return dexPicker(shared.gen3Uncaught())end),
-    submenu("ALL 386 DEXNAV",function()
-      local list={};for n=1,386 do local s=Pokemon.speciesFromNational(n);if s then list[#list+1]=s end end
-      return dexPicker(list)
-    end),action("CANCEL DEXNAV SEARCH",function()shared.gen3DexNav(nil)end)}
+    submenu("UNCAUGHT AREA",function()return dexPicker(shared.gen3LocalSpecies(true))end)}
 end
 function shared.openGen3Options()
   shared.ensureGen3DexNav()

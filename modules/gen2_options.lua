@@ -93,9 +93,7 @@ local defs = {
     return {
       toggle("HM DEVICE", "hm_device", true),
       toggle("REUSABLE TMS", "reusable_tms", true),
-      toggle("DEX HUNT", "all_251_catchable", true),
-      choice("HUNT RATE", "catch_all_interval", { 10, 20, 50 }, 20,
-        function(value) return "1/" .. tostring(value) end),
+      toggle("UNCAUGHT AREA", "all_251_catchable", true),
       toggle("PC RARE CANDY", "pc_rare_candy", false),
       action("MAX COINS", function(game) shared.maxCoins(game) end),
     }

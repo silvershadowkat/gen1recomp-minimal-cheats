@@ -1,12 +1,12 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.6 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.7 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
 ## Install
 
-Use the packaged silvershadow-mods-v3.1.6.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.1.7.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 
@@ -15,9 +15,9 @@ Open **START → SILVERSHADOW**. Gen 3 uses native menus and data structures, in
 - **Battle:** EXP and damage multipliers, OHKO, infinite HP/PP, unlimited balls, always hit/critical/first/escape, guaranteed catch, and no random encounters. Both allied slots in double battles are handled. Link battles bypass gameplay cheats; normal game restrictions outside a hook (such as trainer capture restrictions) remain. Trainer catching stays blocked, and balls do not bypass the native restriction while two wild opponents remain.
 - **Healing/items:** heal now, heal after battles/map changes/catches, perfect-IV catches, 99 Rare Candies, max money/coins, and perfect party IVs.
 - **Party editor:** level, individual IVs, EVs (510 total cap), and move choices for each slot. The default list contains current-level level-up moves, including prior evolutions, plus current moves. SELECT switches to all 354 moves grouped by physical/special type and status category. The move editor can replace HMs; valid moves can be assigned to any species.
-- **Summon:** all 386 National Dex species at level 25, using the game's party/PC placement. **Items/TMs** fills a chosen non-key item to 99, subject to native bag limits. **Pokemon PC** opens native storage anywhere.
+- **Summon:** a species list that starts a normal wild battle at your first healthy party member's level. It does not grant a Pokemon directly. FireRed/LeafGreen offer #001–151 until the native National Dex unlock, then all 386; Hoenn retains all 386. **Items/TMs** fills a chosen non-key item to 99, subject to native bag limits. **Pokemon PC** opens native storage anywhere.
 - **Followers:** 0–6 healthy party followers, including Hoenn species and shiny art. Water types and taught SURF users swim; Flying types and taught FLY users can travel through the air. Ineligible followers hide over water. These travel abilities are independent of the HM device. Pokemon mode replaces the trainer's visual with the first healthy party Pokemon; an optional trainer trails behind. These sprites are bundled, so Gen 3 needs no PokéPC provider. Keep your existing PokéPC provider enabled only for Gen 1/2.
-- **Collection:** Dex Hunt replaces every 20th ordinary wild encounter with an uncaught species from the 386-species registry, including version exclusives. Its interval is configurable. DexNav queues an area, uncaught, or chosen National Dex species for the next ordinary encounter, preserving its native level. Roaming, scripted, Safari, and link encounters are excluded. All twelve trade evolutions have level-up alternatives; held-item evolutions still require their original item, available from Items/TMs. Evolution consumes the item only after successful evolution and retains native restrictions such as FireRed/LeafGreen National Dex gates.
+- **Collection:** fixed species-specific additions based on habitat and original encounter/evolution levels. Every Gen 2/3 species gains a suitable FireRed/LeafGreen home only after the native National Dex unlock; extra legendaries use Cerulean Cave. Ordinary encounters include these additions. **PREFER UNCAUGHT AREA** chooses an uncaught local species on every encounter when available; there is no global pool or timer. When disabled, or when the area is complete, ordinary encounters retain the native result 70% of the time and can select an added local species 30% of the time. Registered **DEXNAV / SELECT** starts an uncaught local battle immediately. Surfing uses the water pool; land uses grass/cave encounters. Existing native tables and scripted/roaming/Safari/link encounters remain unchanged. All twelve Gen 3 trade evolutions keep their level-up alternatives, original held-item requirements and native evolution gates.
 - **Free Fly:** take off/land from the movement menu; move over obstacles within the current map. BADGE CHECK and STORY GATES default on. The native Fly badge and either the Fly HM device with a healthy party helper or a healthy Fly user are required; landing must be clear and reachable from the takeoff point through ordinary ground without crossing warps, active event triggers, water, or blocking terrain. This is deliberately conservative around story barriers. RETURN TO GROUND restores the takeoff location. Saving is blocked while airborne. Map-boundary flight and levels above 100 are not supported in Gen 3.
 
 L/R page through long catalogues. Battle cheats default off; follower count defaults to one. Settings remain scoped by the engine's mod-save system.
@@ -61,7 +61,7 @@ For Gen 1/2 followers, separately install [burgerslayer7/PokePCFollowers](https:
 - **Gen 1:** All Pokemon Catchable 151, level replacements for the four trade evolutions, native Bag with a separate additive item editor, original Pokemon boxes, DexNav, HM Anywhere, Free Fly, Moves Manager, DV/EV Editor, Battle Move Info, reusable machines, free TM shop, Heal, Summon, display tools, optional 0-6 followers, and the full cheat menu.
 - **Gen 2:** All Pokemon Catchable 251 Dex Hunt and a registerable Area DexNav Key Item, single-player alternatives for all trade evolutions, native separated Pack pockets and original Pokemon boxes, Free Fly, Moves Manager, DV/EV Editor, audited healing and movement controls, optional 0-6 followers, and generation-native battle cheats.
 
-The Gen 2 Dex Hunt replaces every 20th ordinary wild encounter by default with a Pokemon the current save has not caught. It uses the active 251-species registry, so it works identically from Gold, Silver, or Crystal without replacing their different maps and time-of-day tables. Bug Contest, scripted, and roaming encounters stay vanilla. The rate can be changed to 1/10 or 1/50, or turned off.
+Gen 2 Dex Hunt now prefers an uncaught Pokemon from the current area's time-of-day land or surfing pool on every ordinary encounter. Habitat-based additions make missing species available locally; extra legendaries use Mt. Silver. There is no global rotation or encounter-count wait. Bug Contest, scripted and roaming encounters remain native. **START → SUMMON** opens a 251-species list and starts a wild battle at the healthy lead's level.
 
 Gold, Silver, and Crystal also receive a permanent **DEXNAV** in the Key Items pocket. Use it directly for an uncaught Pokemon from the current map's current-time land table (or water table while surfing). To assign the native shortcut, highlight DEXNAV, press A, and choose **SEL**; overworld SELECT then uses DexNav exactly like a registered Bicycle or rod. This does not replace the separate automatic Dex Hunt option.
 
@@ -77,7 +77,7 @@ Gen 2 any-trade evolutions occur at level 42 for Kadabra, Graveler, and Haunter,
 Normal Options contains one SILVERSHADOW OPEN row. Gen 2 exposes only the audited groups:
 
 - **Battle:** EXP and damage multipliers, OHKO, Infinite HP/PP, Unlimited Balls, Always Hit/Crit/First/Escape, Guaranteed Catch, and No Encounters.
-- **Pokemon:** Dex Hunt 251 and its rate, PC Rare Candy, and Max Coins. Pokemon storage uses each game's original box screens.
+- **Pokemon:** local uncaught preference, PC Rare Candy, and Max Coins. Pokemon storage uses each game's original box screens.
 - **Healing:** Perfect Catch DVs, Heal Catch, Heal After Battle, Heal on Map Change, and Heal Party Now.
 - **Movement:** x1.5/x2/x3/x4 with separate foot, bicycle, surf, and Free Fly behavior; adjustable flight height; optional trainer sight; and default-on Story Gate and Badge Check restrictions.
 - **Followers:** trainer- or Pokemon-front formations, optional trainer trail, and 0-6 visible Pokemon when the separately installed PokePC provider is present.
@@ -141,3 +141,11 @@ The game still handles timing, cancelability, item consumption, species/stat cha
 ### Start-menu cleanup in 3.1.6
 
 The paid **HEAL ¥…** Start-menu shortcut is retired. PC access and the separate healing cheats remain available.
+
+### Collection mapping in 3.1.7
+
+The fixed homes live in `modules/collection_habitats.lua`. The optional generator `tools/generate_collection_placements.py --engine PATH` uses imported habitat, type, encounter and evolution metadata to rebuild them; it requires Python and lupa. No ROM graphics or scripts are bundled. Original native encounters remain in place. Ruby/Sapphire/Emerald use suitable Hoenn homes for missing species and Sky Pillar for extra legendaries. The new homes do not replace the original Pokedex's area-marker data.
+
+In Gen 3, register DEXNAV through **START → SILVERSHADOW → FIELD TOOLS / QOL → REGISTER DEXNAV ON SELECT**. In Gen 2, select DEXNAV in the Key Items pocket and choose **SEL**. Existing registered items are preserved until you choose DexNav.
+
+Modern Gen 1/2 capture animations use the matching imported Poke, Great, Ultra, Master and Safari Ball art; Gen 2-exclusive balls retain their native graphics. Native capture outcomes and shake timing are unchanged.

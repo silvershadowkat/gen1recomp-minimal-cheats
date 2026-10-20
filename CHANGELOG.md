@@ -1,3 +1,12 @@
+# 3.1.7 — Local collection, Summon and capture artwork
+
+- Keep Gen 1's modern battle canvas behind trainer-switch and post-faint YES/NO prompts, with a matching popup and native choice behavior. Preserve native Party/Bag layouts.
+- Replace Gen 2/3 global encounter timers with fixed local habitat/progression mappings and an uncaught-local preference on every normal encounter. Keep ordinary native encounters and mix in local additions even with the preference off.
+- Give every Johto/Hoenn species a FireRed/LeafGreen home after the actual National Dex unlock. Put extra legendaries in Cerulean Cave; preserve scripted encounters and existing Pokemon. Use Mt. Silver and Sky Pillar for the corresponding extra legendary pools in Johto and Hoenn.
+- Make registered Gen 3 DexNav start an uncaught local wild battle immediately. Use the same area pools as ordinary encounters, including water while surfing.
+- Add Gen 2's 251-species Summon list and change Gen 3 Summon from direct party grants to native wild battles. Summon uses a healthy lead's level and respects FRLG's National Dex restriction.
+- Redirect modern Gen 1/2 capture balls to matching imported Gen 3 Poke, Great, Ultra, Master and Safari Ball artwork, preserving native trajectories, shakes, particles and capture outcomes. Gen 2-exclusive balls keep their native art.
+
 # 3.1.6 — Start-menu cleanup
 
 - Delete the paid Heal Anywhere module, removing its HEAL shortcut and field-machine rendering hooks from the code and release package. PC access and other healing tools are unchanged.

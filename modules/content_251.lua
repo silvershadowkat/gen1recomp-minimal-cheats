@@ -80,49 +80,25 @@ mod.content.pokemon:patch("PORYGON", {
   evolutions = { heldEvolution("UP_GRADE", "PORYGON2") },
 })
 
--- Gold, Silver and Crystal have different tables, time slots and exclusives.
--- A shared encounter hook is more robust than replacing all three ROMs' map
--- tables: every Nth ordinary wild encounter becomes a species the current
--- save has not caught yet. Scripted, fishing-special, contest and roaming
--- encounters retain their vanilla behavior.
-local encounterCount = 0
-local dexCursor = 1
-
-local function uncaughtDex(data, caught)
-  local rows = {}
-  for id, def in pairs((data and data.pokemon) or {}) do
-    local dex = tonumber(def.dex)
-    if dex and dex >= 1 and dex <= 251 and not caught[id] then
-      rows[#rows + 1] = { id = id, dex = dex }
+-- Fixed local additions; no global species rotation or encounter timer.
+mod.hooks:wrap("encounter.species",function(next,encounter,ctx)
+  local out=next(encounter,ctx)
+  local game=shared.game
+  if type(out)~="table"or out.roamer or not ctx or ctx.kind~="wild"
+      or not game or shared.online()or not shared.gen2AreaRows then return out end
+  local world=game.world
+  if not world or not world.map then return out end
+  local rng=ctx.rng or math.random
+  local row
+  if shared.bool("all_251_catchable",true)then row=shared.gen2DexNavPick(game,world,rng)end
+  if not row and rng(1,100)<=30 then
+    local added={}
+    for _,r in ipairs(shared.gen2AreaRows(game,world))do
+      if r.added then added[#added+1]=r end
     end
+    if #added>0 then row=added[rng(1,#added)]end
   end
-  table.sort(rows, function(a, b)
-    if a.dex == b.dex then return a.id < b.id end
-    return a.dex < b.dex
-  end)
-  return rows
-end
-
-mod.hooks:wrap("encounter.species", function(next, encounter, ctx)
-  local out = next(encounter, ctx)
-  if type(out) ~= "table" or not ctx or ctx.kind ~= "wild" then return out end
-  if not shared.bool("all_251_catchable", true) then return out end
-  if not shared.game or shared.online() then return out end
-
-  encounterCount = encounterCount + 1
-  local interval = shared.allowed("catch_all_interval", { 10, 20, 50 }, 20)
-  if encounterCount < interval then return out end
-  encounterCount = 0
-
-  local save = shared.game.save or {}
-  local caught = save.pokedex and save.pokedex.caught or {}
-  local missing = uncaughtDex(ctx.data or shared.game.data, caught)
-  if #missing == 0 then return out end
-
-  if dexCursor > #missing then dexCursor = 1 end
-  local replacement = missing[dexCursor]
-  dexCursor = (dexCursor % #missing) + 1
-  return { species = replacement.id, level = out.level }
+  return row and {species=row.species,level=row.level}or out
 end)
 
-mod.log:info("Gen 2 single-player evolutions and catchable 251 loaded")
+mod.log:info("Gen 2 single-player evolutions and local catchable 251 loaded")

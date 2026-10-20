@@ -141,5 +141,78 @@ second.ability='CLOUD_NINE';eq(info(preview,user,1).type,0,'weather suppression'
 user.mon.moves[1]=7;eq(info(preview,user,1).effect,'SPECIAL','fixed damage has no false multiplier')
 eq(user.mon.hp,20,'preview never changes HP');eq(user.mon.pp[1],35,'preview never spends PP')
 Moves.get=oldGet
+-- Real profile/National Dex gates with deterministic local encounter fixtures.
+local Pokemon=require("src.core.game3.pokemon")
+local Encounters=require("src.core.game3.encounters")
+local Rng=require("src.core.game3.rng")
+local Safari=require("src.core.game3.safari")
+local Dex=require("src.core.game3.dex")
+local saved={Pokemon.speciesFromNational,Pokemon.national,Pokemon.keyName,Pokemon.name,
+  Encounters.tableFor,Encounters.ensureLoaded,Encounters._tables,Rng.Random,Safari.isActive,Dex.isCaught}
+Pokemon.speciesFromNational=function(n)return n<=251 and n or n+25 end
+Pokemon.national=function(n)return n<=251 and n or n-25 end
+Pokemon.keyName=function(n)return "SPECIES_"..n end;Pokemon.name=Pokemon.keyName
+local fixture={land={slots={{species=19,minLevel=3,maxLevel=3}}},
+  water={slots={{species=129,minLevel=5,maxLevel=5}}}}
+Encounters.tableFor=function()return fixture end
+Encounters.ensureLoaded=function()return true end
+Encounters._tables={TEST=fixture}
+Rng.Random=function()return 99 end;Safari.isActive=function()return false end
+local missing=163
+Dex.isCaught=function(_,sp)return sp~=missing end
+session.version=version;session.dex={};session.national_dex_unlocked=false
+local kanto=version=="firered"or version=="leafgreen"
+session.map=kanto and "FR_ROUTE1"or shared.collectionHomes.rse[163].map
+Player.surfing=false;Player.moving=false
+local function has(rows,n)
+  for _,r in ipairs(rows)do if Pokemon.national(r.species)==n then return true end end
+  return false
+end
+local function ordinary()
+  return hook("encounter.species",function(e)return e end,{speciesId=19,level=3},
+    {mapId=session.map,terrain="land"})
+end
+shared.set("gen3_dex_hunt",true);shared.set("gen3_dex_rate",50)
+eq(shared.gen3CollectionLimit(),kanto and 151 or 386,"pre-National limit")
+eq(shared.gen3CollectionAllows(411),not kanto,"internal ID gap")
+eq(has(shared.gen3AreaRows(),163),not kanto,"local addition gate")
+if kanto then eq(ordinary().speciesId,19,"no pre-National Johto leak")end
+session.national_dex_unlocked=true
+eq(shared.gen3CollectionLimit(),386,"post-National limit")
+eq(has(shared.gen3AreaRows(),163),true,"Hoothoot local home")
+for i=1,3 do eq(ordinary().speciesId,163,"every encounter prefers local uncaught")end
+local roamer={speciesId=243,level=50,roamer=true}
+eq(hook("encounter.species",function(e)return e end,roamer,{}),roamer,"roamer untouched")
+session.safari={active=true};eq(ordinary().speciesId,19,"Safari untouched");session.safari=nil
+shared.set("gen3_dex_hunt",false)
+Rng.Random=function()return 0 end
+local mixed=ordinary()
+eq(mixed.speciesId~=nil and mixed.speciesId~=19,true,"additions available with preference off")
+Rng.Random=function()return 99 end
+eq(ordinary().speciesId,19,"vanilla still present in mixed encounters")
+-- SELECT/DexNav and Summon begin native wild battles; no direct party grant.
+local oldBridge=package.loaded["src.core.game3.battle_bridge"]
+local started
+package.loaded["src.core.game3.battle_bridge"]={startWild=function(_,_,e)started=e;return true end}
+local partySize=#session.party
+missing=163
+eq(shared.gen3DexNav(nil),true,"immediate area DexNav")
+eq(started.species,163,"area DexNav selected uncaught local species")
+eq(#session.party,partySize,"DexNav never directly grants Pokemon")
+local far=Pokemon.speciesFromNational(382)
+eq(shared.gen3DexNav(far,true),false,"area DexNav rejects distant species")
+eq(shared.gen3Summon(far),true,"Summon can start selected nonlocal wild battle")
+eq(started.species,far,"Summon selected species")
+eq(#session.party,partySize,"Summon never directly grants Pokemon")
+session.national_dex_unlocked=false
+if kanto then eq(shared.gen3Summon(far),false,"Summon respects National Dex gate")end
+Player.surfing=true
+for _,r in ipairs(shared.gen3AreaRows())do
+  if r.added then
+    eq(shared.collectionHomes[kanto and "frlg"or"rse"][Pokemon.national(r.species)].terrain,"water","aquatic placement")
+  end
+end
+package.loaded["src.core.game3.battle_bridge"]=oldBridge
+Pokemon.speciesFromNational,Pokemon.national,Pokemon.keyName,Pokemon.name,
+  Encounters.tableFor,Encounters.ensureLoaded,Encounters._tables,Rng.Random,Safari.isActive,Dex.isCaught=unpack(saved)
 print("SilverShadow "..version.." engine integration: "..checks.." checks passed")
-

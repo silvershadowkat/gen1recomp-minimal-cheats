@@ -213,6 +213,24 @@ function A.evolutionBackground(flashing)
   region(C.textbox,120,112,120,48,136,144)
 end
 shared.battleAssets=A
+-- Same IDs and native 16x16 frames as the imported Gen 3 battle ball sheet.
+-- Gen 2-only balls have no matching Gen 3 art; keep their native renderer.
+local captureIds={POKE_BALL=0,GREAT_BALL=1,SAFARI_BALL=2,ULTRA_BALL=3,MASTER_BALL=4}
+function A.captureBall(item,frame)
+  local id=captureIds[item]
+  if id==nil or not A.init()then return end
+  if A.captureSheet==nil then
+    A.captureSheet=image("pokemon/battle/ball_open/balls.rgba",192,48)or false
+  end
+  if not A.captureSheet then return end
+  frame=math.max(0,math.min(2,frame or 0))
+  A.captureQuads=A.captureQuads or{}
+  local key=id*3+frame
+  if not A.captureQuads[key]then
+    A.captureQuads[key]=g.newQuad(id*16,frame*16,16,16,192,48)
+  end
+  return A.captureSheet,A.captureQuads[key]
+end
 -- FireRed's ROM trainer-picture IDs. Only shared characters/classes are
 -- mapped: Johto-only protagonists, leaders and rivals retain their own art.
 local trainers={YOUNGSTER=82,BUGCATCHER=83,LASS=84,SAILOR=85,CAMPER=86,JRTRAINERM=86,

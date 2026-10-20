@@ -12,6 +12,15 @@ local A=shared.battleAssets
 -- 256x192 fills the Nova at an exact 5x, matching its overworld grid and
 -- keeping imported Gen3 glyphs and sprites at one common source-pixel size.
 local W,H = 256,192
+local ChoiceBox=not gen2 and require("src.ui.ChoiceBox")
+local function battleChoice(state)
+  if gen2 or getmetatable(state)~=ChoiceBox then return false end
+  local states=state.game and state.game.stack and state.game.stack.states or {}
+  for i,s in ipairs(states)do
+    if s==state then return i>1 and getmetatable(states[i-1])==B end
+  end
+  return false
+end
 -- Native party/bag/choice states are authored on a 160x144 surface. Keep
 -- their background battle on that same surface for the lifetime of the menu.
 local function nativeOverlay()
@@ -20,7 +29,7 @@ local function nativeOverlay()
   local found=false
   for _,state in ipairs(states)do
     if getmetatable(state)==B then found=true
-    elseif found and getmetatable(state)~=B.StatBox
+    elseif found and getmetatable(state)~=B.StatBox and not battleChoice(state)
       and not(state.itemBox and state.kind=='bag')then return true end
   end
   return false
@@ -213,19 +222,27 @@ if gen2 then
     if pass then return end
     local sprites=runner:oam()
     if #sprites==0 then return end
+    local rest,ball
+    if shared.captureBalls then rest,ball=shared.captureBalls.gen2(runner,sprites)end
     local lo,hi=math.huge,-math.huge
     for _,s in ipairs(sprites)do lo=math.min(lo,s.x-8);hi=math.max(hi,s.x)end
     local t=math.max(0,math.min(1,((lo+hi)/2-40)/88))
     -- Translate each complete OAM group, preserving its shapes and spacing.
     -- A projectile travelling across the field interpolates between anchors.
     local moved={}
-    for _,s in ipairs(sprites)do
+    for _,s in ipairs(rest or sprites)do
       local v={};for k,value in pairs(s)do v[k]=value end
       v.x=v.x+math.floor(16+48*t+.5);v.y=v.y+math.floor(28*(1-t)+.5)
       moved[#moved+1]=v
     end
     local proxy=setmetatable({oam=function()return moved end},{__index=runner})
-    return objects(self,proxy,battle)
+    local result=objects(self,proxy,battle)
+    if ball then
+      ball.x=ball.x+math.floor(16+48*t+.5)
+      ball.y=ball.y+math.floor(28*(1-t)+.5)
+      shared.captureBalls.draw(runner._silverBallItem,ball)
+    end
+    return result
   end
   Wide.drawField=function(b)
     if not captureActive then return field(b)end
@@ -256,6 +273,19 @@ if gen2 then
     return frame(self,mon)
   end
 else
+  local AP=require("src.battle.AnimPlayer")
+  local drawSprites=AP.drawSprites
+  AP.drawSprites=function(self,sprites,colorFn)
+    if captureActive and captureBattle and self==captureBattle.animPlayer and shared.captureBalls then
+      local rest,ball=shared.captureBalls.gen1(captureBattle,self,sprites)
+      if ball then
+        local r=drawSprites(self,rest,colorFn)
+        shared.captureBalls.draw(captureBattle._silverBallItem,ball)
+        return r
+      end
+    end
+    return drawSprites(self,sprites,colorFn)
+  end
   local balls=B.drawBallRow
   B.drawBallRow=function(self,...)
     if captureActive then return end
@@ -503,6 +533,25 @@ local function statsCard(game,mon,name)
 end
 shared.battleStatsCard=statsCard
 if not gen2 then
+  -- Only direct battle choices share the modern canvas. Choices nested in
+  -- Party/Bag/PC screens retain their own native placement and input rules.
+  local choiceDraw=ChoiceBox.draw
+  local function modernChoice(self)return battleChoice(self)and enabled()end
+  ChoiceBox.isWideBattleLayout=modernChoice
+  ChoiceBox.uiSize=function(self)if modernChoice(self)then return W,H end;return 160,144 end
+  ChoiceBox.wantsFillScale=modernChoice
+  ChoiceBox.draw=function(self)
+    if not modernChoice(self)or not A.init()then return choiceDraw(self)end
+    if not require("src.battle.UIVisibility").bottomVisible(self,false)then return end
+    g.push("all");g.setShader()
+    A.chrome.drawWindow(184,48,64,52)
+    local Strings=require("src.core.Strings")
+    for i,text in ipairs(self.labels)do
+      A.text(Strings(text),204,58+(i-1)*18,false,true)
+    end
+    A.text(">",192,58+(self.index-1)*18,false,true)
+    g.pop()
+  end
   local StatBox=B.StatBox;local originalStats=StatBox.draw
   local function active(self)
     if not enabled()then return false end
