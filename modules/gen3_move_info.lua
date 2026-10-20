@@ -4,14 +4,6 @@ local Moves=require('src.core.game3.battle.moves')
 local Damage=require('src.core.game3.battle.damage')
 local Rules=require('src.core.game3.battle.rules')
 local Abilities=require('src.core.game3.battle.adapter').ABILITY_BY_ID
-local colors={
- [0]={.35,.35,.30,1},[1]={.65,.18,.15,1},[2]={.40,.32,.69,1},
- [3]={.51,.23,.60,1},[4]={.55,.35,.12,1},[5]={.49,.40,.17,1},
- [6]={.36,.46,.07,1},[7]={.36,.25,.52,1},[8]={.28,.44,.58,1},
- [10]={.74,.23,.10,1},[11]={.13,.35,.72,1},[12]={.21,.48,.15,1},
- [13]={.57,.43,.02,1},[14]={.70,.20,.46,1},[15]={.10,.47,.50,1},
- [16]={.36,.20,.73,1},[17]={.32,.24,.20,1},
-}
 local function ability(b)
   local a=b and (b.ability or b.mon and (b.mon.ability or b.mon.abilityId))
   return Abilities[tonumber(a)]or a
@@ -64,7 +56,7 @@ local function info(st,attacker,slot,target)
       end
     else effect='PICK FOE'end
   end
-  return {type=typ,color=colors[typ]or colors[0],effect=effect or 'TYPE ?',def=def,
+  return {type=typ,color=shared.moveTypeColor(typ)or shared.typeColors.NORMAL,effect=effect or 'TYPE ?',def=def,
     pp=mon.pp and mon.pp[slot]or 0,maxPp=mon.maxPp and mon.maxPp[slot]or def.pp or 0}
 end
 shared.gen3MoveInfo=info

@@ -1,4 +1,4 @@
--- SilverShadow Mods 3.1.2
+-- SilverShadow Mods 3.1.3
 -- One entry point, deterministic module order, and one shared service table.
 
 return function(mod)
@@ -21,7 +21,9 @@ return function(mod)
   end
 
   local shared = loadModule("modules/core.lua")
+  loadModule("modules/type_colors.lua",shared)
   loadModule("modules/shader_pixel_scale.lua",shared)
+  loadModule("modules/boot_presentation.lua",shared)
   local gen1Modules = {
     -- Content patches run before runtime consumers such as DexNav.
     "modules/content_151.lua",
@@ -99,5 +101,5 @@ return function(mod)
   end
   if shared.gameVersion=="yellow" then loadModule("modules/yellow_companion.lua",shared) end
   mod.exports.silvershadow = shared
-  mod.log:info("SilverShadow Mods 3.1.2 loaded for Gen %s", shared.generation)
+  mod.log:info("SilverShadow Mods 3.1.3 loaded for Gen %s", shared.generation)
 end

@@ -232,6 +232,36 @@ return function(mod, shared)
     return (record and record.name) or humanize(moveDef and moveDef.type)
   end
 
+  local inkShader
+  local function drawTyped(text, x, y, typ)
+    local color = shared.moveTypeColor(typ)
+    if not color then return Font.draw(text, x, y) end
+    local g = love.graphics
+    g.push('all')
+    if Font.ttfActive and Font.ttfActive() then
+      g.setShader()
+      g.setColor(color)
+    else
+      -- Native GB glyphs contain black ink, so ordinary color multiplication
+      -- keeps them black. Recolor the ink mask and leave the paper transparent.
+      inkShader=inkShader or g.newShader([[
+        extern vec3 ink;
+        vec4 effect(vec4 color, Image image, vec2 uv, vec2 screen) {
+          vec4 p=Texel(image,uv);
+          return vec4(ink,p.a*(1.0-p.r));
+        }
+      ]])
+      inkShader:send('ink',{color[1],color[2],color[3]})
+      g.setShader(inkShader)
+      g.setColor(1,1,1,1)
+    end
+    Font.draw(text, x, y)
+    g.pop()
+    if shared.generation == 1 then
+      require('src.render.PaletteFX').markTrueColor(x, y, Font.width(text), 8)
+    end
+  end
+
   local function normalizedType(moveDef)
     return tostring(moveDef and moveDef.type or "UNKNOWN"):gsub("_TYPE$", "")
   end
@@ -637,7 +667,7 @@ return function(mod, shared)
       if self.swapSlot == i then Font.drawCode(Theme.cursorHollow, 8, y) end
       if move then
         local def = self.game.data.moves[move.id]
-        Font.draw(fit(def and def.name or move.id, 16), 16, y)
+        drawTyped(fit(def and def.name or move.id, 16), 16, y, def and def.type)
         Font.draw(("PP %2d/%2d"):format(move.pp or 0, maxPP(def, move)), 80, y + 10)
       else
         Font.draw("- EMPTY -", 16, y)
@@ -667,7 +697,8 @@ return function(mod, shared)
       if not entry then break end
       local y = 16 + row * 16
       if i == self.poolIndex then Font.drawCode(Theme.cursor, 8, y) end
-      Font.draw(fit(entry.name, 17), 16, y)
+      local def = entry.id and self.game.data.moves[entry.id]
+      drawTyped(fit(entry.name, 17), 16, y, def and def.type or entry.key)
     end
     if self.mode == "pool" then
       Font.draw("A DETAILS SEL:ALL", 8, 128)
@@ -685,11 +716,12 @@ return function(mod, shared)
       Font.draw("MOVE DATA MISSING", 8, 56)
       return
     end
-    Font.draw(fit(def.name or moveId, 15), 8, 8)
+    drawTyped(fit(def.name or moveId, 15), 8, 8, def.type)
     Font.draw(tostring(self.detailPage) .. "/3", 136, 8)
 
     if self.detailPage == 1 then
-      drawLabelValue("TYPE", fit(typeName(def), 10), 28)
+      Font.draw("TYPE", 8, 28)
+      drawTyped(fit(typeName(def), 10), 80, 28, def.type)
       drawLabelValue("CLASS", categoryName(def), 41)
       drawLabelValue("POWER", def.power or 0, 54)
       drawLabelValue("ACCURACY", tostring(def.accuracy or 0) .. "%", 67)

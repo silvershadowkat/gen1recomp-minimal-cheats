@@ -1,3 +1,9 @@
+# 3.1.3 — Title pixel preservation and editor colors
+
+- Align Gen 1 boot/title artwork and retro-v3 sampling to the same whole-pixel scale, preserving thin letter strokes.
+- Extend the original Red/Blue intro bars across the wide surround, including native palette fades.
+- Share one type palette across battles and Gen 1/2/3 move editors; color move lists, type categories and type labels without changing move rules.
+
 # 3.1.2 — Battle layout and LCD refinements
 
 - Use a 256x192 battle canvas for an exact 5x pixel scale on the 1280x960 Nova. Preserve sharp native sprite and font proportions.

@@ -1,12 +1,12 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.2 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.3 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
 ## Install
 
-Use the packaged silvershadow-mods-v3.1.2.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.1.3.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 
@@ -119,3 +119,9 @@ This unofficial community mod is not affiliated with or endorsed by Nintendo, Th
 Gen 1/2 modern battles and Gen 3 4:3 battles use a 256×192 logical canvas (exactly 5× on the 1280×960 Nova). Gen 2 Party/Pack panels reflow to that canvas; Gen 3 Party/Bag backgrounds extend their own background artwork while retaining native font, icon and control sizes. Other screens keep their authored layouts. The Gen 2 shader receives the actual active layout scale, preventing a 6× LCD grid from resampling 5× battle artwork.
 
 Gen 3 **MOVE TYPE INFO** adds colored move labels and a read-only type matchup. It is a type preview, not a damage prediction. Double battles follow the selected opponent; mixed spread matchups show VARIES. Native scenario backgrounds, battle rules and trainer-catching restrictions are preserved.
+
+### Title pixels and move-editor colors in 3.1.3
+
+Gen 1 boot/title art uses a whole physical-pixel scale when retro-v3 is selected. This prevents the rounded LCD sampling grid from discarding thin strokes in the Red/Blue version ribbon. The original Red/Blue cinematic bars extend across the surround, using the original palette and fade. Yellow retains its own intro and title artwork.
+
+All three generations use one shared type palette for battle move names and move-editor lists. Known/eligible moves, full categorized lists and type labels are colored; PP, controls and unrelated text keep their normal colors. Gen 1/2 recolor the native glyph ink without replacing the font. Gen 3 uses its native list foreground-color support. Move eligibility, teaching and stats are unchanged.

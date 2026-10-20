@@ -67,6 +67,7 @@ local function install(path, ...)
 end
 
 local shared = install("modules/core.lua", mod)
+install("modules/type_colors.lua", mod, shared)
 install("modules/useful_bag.lua", mod, shared)
 install("modules/pc.lua", mod, shared)
 install("modules/extended_levels.lua", mod, shared)

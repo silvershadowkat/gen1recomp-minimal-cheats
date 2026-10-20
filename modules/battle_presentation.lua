@@ -367,11 +367,7 @@ local function nativeSurface(b,regular)
   if not ok then error(err,0) end
 end
 local reverse
-local typeColors={NORMAL={.35,.35,.30,1},FIRE={.74,.23,.10,1},WATER={.13,.35,.72,1},
-  GRASS={.21,.48,.15,1},ELECTRIC={.57,.43,.02,1},ICE={.10,.47,.50,1},FIGHTING={.65,.18,.15,1},
-  POISON={.51,.23,.60,1},GROUND={.55,.35,.12,1},FLYING={.40,.32,.69,1},PSYCHIC={.70,.20,.46,1},
-  BUG={.36,.46,.07,1},ROCK={.49,.40,.17,1},GHOST={.36,.25,.52,1},DRAGON={.36,.20,.73,1},
-  DARK={.32,.24,.20,1},STEEL={.28,.44,.58,1}}
+local typeColors=shared.typeColors
 local function moveInfo(b,move)
   local data=b.data or b.game.data
   local def=move and data.moves[move.id]

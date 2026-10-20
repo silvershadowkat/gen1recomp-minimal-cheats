@@ -15,6 +15,16 @@ local function choice(label,key,values,default)
     run=function() shared.cycle(key,values,default) end}
 end
 local function action(label,fn) return {text=label,run=fn} end
+local function typedAction(label,fn,typ)
+  local row=action(label,fn)
+  local color=shared.moveTypeColor(typ)
+  if color then
+    row.colors={}
+    for k,v in pairs(Font.COLOR.NORMAL)do row.colors[k]=v end
+    row.colors.fg=color
+  end
+  return row
+end
 local show
 local function submenu(label,fn) return action(label,function() show(label,fn()) end) end
 local function refresh()
@@ -129,11 +139,12 @@ local function openMovePicker(mon,slot)
     local rows={}
     for _,num in ipairs(ids)do
       local move=num
-      rows[#rows+1]=action(Pokemon.moveName(move),function()
+      local moveDef=Pokemon.battleMove(move)
+      rows[#rows+1]=typedAction(Pokemon.moveName(move),function()
         local def=Pokemon.battleMove(move)
         local branch,group=tools.branch(move)
         show(Pokemon.moveName(move),{
-          action(branch:upper().." / "..group,function()end),
+          typedAction(branch:upper().." / "..group,function()end,def.type),
           action("POWER "..tostring(def.power).."  ACC "..tostring(def.accuracy),function()end),
           action("PP "..tostring(def.pp),function()end),
           action("TEACH TO SLOT "..slot,function()
@@ -141,7 +152,7 @@ local function openMovePicker(mon,slot)
               reset();menu.list=pages[#pages].list;refresh()
             end
           end)},opts)
-      end)
+      end,moveDef and moveDef.type)
     end
     if #rows==0 then rows[1]=action("NO MOVES IN THIS GROUP",function()end)end
     return rows
@@ -159,7 +170,7 @@ local function openMovePicker(mon,slot)
         local groups={}
         for _,group in ipairs(tools.groups[key])do
           local name=group
-          groups[#groups+1]=action(name,function()show(name,rowsFor(tools.catalog(key,name)),opts)end)
+          groups[#groups+1]=typedAction(name,function()show(name,rowsFor(tools.catalog(key,name)),opts)end,name)
         end
         show(key:upper(),groups,opts)
       end)
