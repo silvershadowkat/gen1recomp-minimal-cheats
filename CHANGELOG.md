@@ -1,3 +1,11 @@
+# 3.1.4 — Followers across doors and routes
+
+- Gather Gen 1/2 followers at the arrival tile after a warp; do not invent a trail through houses or walls.
+- Preserve follower entities, movement progress and trail history across connected routes in all three generations, translating into the destination map’s coordinates.
+- Preserve Gen 2’s primary follower as well as the extra party followers, and retain Yellow’s special Pikachu without duplicating it.
+- Check every intervening ground tile when creating a new behind-player formation.
+- Retain 3.1.3’s title/intro pixel fixes and shared move colors.
+
 # 3.1.3 — Title pixel preservation and editor colors
 
 - Align Gen 1 boot/title artwork and retro-v3 sampling to the same whole-pixel scale, preserving thin letter strokes.

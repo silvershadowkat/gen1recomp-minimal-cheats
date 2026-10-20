@@ -3,6 +3,7 @@
 -- provider. No provider source or artwork is copied into SilverShadow.
 return function(hostMod, assetMod)
   local mod = hostMod
+  local Transitions = assert(mod.exports.followerTransitions)
   local POKE_ID = (assetMod and assetMod.id) or "PokePCFollowers_VoxelMerge"
   local provider = assetMod and assetMod.exports or nil
 
@@ -842,18 +843,12 @@ return function(hostMod, assetMod)
   end
 
   local function walkableBehind(ow, px, py, facing, steps)
-    local ox, oy = behindOffset(facing, steps)
-    local bx, by = px + ox, py + oy
-    if ow.map:inBounds(bx, by) and ow.map:isWalkableCell(bx, by) then
-      return bx, by
-    end
-    bx, by = px, py
-    for s = steps, 1, -1 do
+    local bx, by = px, py
+    for s = 1, steps do
       local sx, sy = behindOffset(facing, s)
       local tx, ty = px + sx, py + sy
-      if ow.map:inBounds(tx, ty) and ow.map:isWalkableCell(tx, ty) then
-        return tx, ty
-      end
+      if not ow.map:inBounds(tx, ty) or not ow.map:isWalkableCell(tx, ty) then break end
+      bx, by = tx, ty
     end
     return bx, by
   end
@@ -976,20 +971,11 @@ return function(hostMod, assetMod)
     local stepClock = p.stepFramesCur or p.stepFrames
       or (anchor and (anchor.stepFramesCur or anchor.stepFrames)) or 16
 
-    -- Stock just appeared (or shared a cell with trailer[1]): reseed behind it.
-    if not dirty and yellowStockFollowActive(game) and anchor ~= p
-       and #trailers > 0 then
-      local t1 = trailers[1]
-      if t1 and not t1.moving
-         and t1.cellX == anchor.cellX and t1.cellY == anchor.cellY then
-        mapEnter = true
-      end
-    end
-
     if dirty then
       removeTrailers(ow)
       trailers = {}
-      local goals = seedFormationBehind(ow, anchor, facing, want, traveling)
+      local goals = mapEnter and Transitions.stack(p, #want)
+        or seedFormationBehind(ow, anchor, facing, want, traveling)
       for i, spec in ipairs(want) do
         local cell = goals[i] or { x = anchor.cellX, y = anchor.cellY }
         local bx, by = cell.x, cell.y
@@ -1012,8 +998,8 @@ return function(hostMod, assetMod)
       ow.pokepcTrailCells = goals
       ow.pokepcTrailHead = { x = anchor.cellX, y = anchor.cellY }
     elseif mapEnter and #trailers > 0 then
-      -- Same pack composition: keep NPCs, soft-reset behind the trail anchor.
-      local goals = seedFormationBehind(ow, anchor, facing, want, traveling)
+      -- A warp has no traversed path on its destination map.
+      local goals = Transitions.stack(p, #want)
       for i, npc in ipairs(trailers) do
         local g = goals[i] or { x = anchor.cellX, y = anchor.cellY }
         placeTrailerAt(npc, g.x, g.y, facing)
@@ -1218,8 +1204,8 @@ return function(hostMod, assetMod)
   end
 
   local origOnMap = PikachuFollower.onMapEntered
-  PikachuFollower.onMapEntered = function(game, ow, opts)
-    origOnMap(game, ow, opts)
+  PikachuFollower.onMapEntered = function(game, ow, opts, ...)
+    origOnMap(game, ow, opts, ...)
     if not controllerEnabled then return end
     if not integrationReady(game, ow) then return end
     local mode = controlMode(game)
@@ -1234,7 +1220,7 @@ return function(hostMod, assetMod)
     -- Soft-reset / rebuild on the next follower update (avoids stacking with
     -- map/voxel init). Do not tear down trailers here unless composition will
     -- change — syncTrailers reuses NPCs when the pack set matches.
-    pendingMapTrailerSync = true
+    pendingMapTrailerSync = not ow.silverFollowerConnection
     pcall(syncPlayerControlVisual, game, ow)
   end
 
@@ -1256,13 +1242,33 @@ return function(hostMod, assetMod)
   mod.events:on("map.entered", function()
     local game, ow = Game, Game and Game.overworld
     pcall(syncPlayerControlVisual, game, ow)
-    pendingMapTrailerSync = true
+    pendingMapTrailerSync = not (ow and ow.silverFollowerConnection)
   end)
   mod.events:on("game.ready", function()
     alignSaveFromOptions(Game)
     pcall(syncPlayerControlVisual, Game, Game and Game.overworld)
     pendingMapTrailerSync = true
   end)
+  local World = require("src.world.OverworldController")
+  local originalConnection = World.crossConnection
+  World.crossConnection = function(ow, ...)
+    if not controllerEnabled then return originalConnection(ow, ...) end
+    local x, y = ow.player.cellX, ow.player.cellY
+    local trailers, cells, head = ow.pokepcTrailers, ow.pokepcTrailCells, ow.pokepcTrailHead
+    ow.silverFollowerConnection = true
+    local ok, result = pcall(originalConnection, ow, ...)
+    ow.silverFollowerConnection = nil
+    if not ok then error(result, 0) end
+    if result then
+      local dx, dy = ow.player.cellX - x, ow.player.cellY - y
+      Transitions.restore(ow, trailers, dx, dy)
+      for _, cell in ipairs(cells or {}) do Transitions.shiftCell(cell, dx, dy) end
+      Transitions.shiftCell(head, dx, dy)
+      ow.pokepcTrailers, ow.pokepcTrailCells, ow.pokepcTrailHead = trailers, cells, head
+      pendingMapTrailerSync = false
+    end
+    return result
+  end
   -- Trailer movement runs from PikachuFollower.update only (not world.stepped)
   -- so steps are not double-advanced against the NPC update loop.
 
@@ -1493,6 +1499,7 @@ return function(hostMod, assetMod)
     end,
     syncAll = function(game, ow)
       if not controllerEnabled then return end
+      if ow and ow.silverFollowerConnection then return end
       syncPhase = "integration readiness"
       invalidateFollowerImageCache()
       if not integrationReady(game, ow) then return end

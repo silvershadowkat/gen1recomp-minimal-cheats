@@ -87,7 +87,7 @@ local function loadGen1()
   assert(#run.errors == 0, "Gen 1 loader errors: " .. table.concat(run.errors, "; "))
   local exports = assert(run.loader.exports.minimal_cheats,
     "SilverShadow Gen 1 exports were not published")
-  assert(exports.silvershadow.version == "3.1.2", "wrong Gen 1 runtime version")
+  assert(exports.silvershadow.version == "3.1.4", "wrong Gen 1 runtime version")
   assert(run.loader.mods.minimal_cheats.manifest.github
       == "silvershadowkat/gen1recomp-minimal-cheats",
     "GitHub update repository metadata was not loaded")
@@ -176,7 +176,7 @@ local function loadGen2()
   local exports = assert(run.loader.exports.minimal_cheats,
     "SilverShadow Gen 2 exports were not published")
   local shared = assert(exports.silvershadow)
-  assert(shared.version == "3.1.2" and shared.generation == 2,
+  assert(shared.version == "3.1.4" and shared.generation == 2,
     "wrong Gen 2 runtime branch")
   local freeFly = assert(exports.freeFly,
     "Gen 2 Free Fly API was not exported")
@@ -525,6 +525,18 @@ local function loadGen2()
   activationOw.player.silverSurfMount = nil
   activationGame.save.party[3] = nil
   followerApi.setFollowerCount(2)
+  activationOw.npcs, activationOw.entities = {}, { activationOw.player }
+  NativeFollower.onMapEntered(activationGame, activationOw, {}, true)
+  followerApi.syncAll(activationGame, activationOw)
+  assert(activationOw.follower.cellX == activationOw.player.cellX
+      and activationOw.follower.cellY == activationOw.player.cellY,
+    "Gen 2 primary did not gather at the warp arrival")
+  assert(#activationOw.silverGen2Followers == 1)
+  for _, npc in ipairs(activationOw.silverGen2Followers) do
+    assert(npc.cellX == activationOw.player.cellX
+        and npc.cellY == activationOw.player.cellY,
+      "Gen 2 warp invented a trail through the destination building")
+  end
   love = savedLove
 
   -- A fresh game must not activate SilverShadow's controller just because the

@@ -1,12 +1,12 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.3 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.4 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
 ## Install
 
-Use the packaged silvershadow-mods-v3.1.3.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.1.4.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 
@@ -125,3 +125,9 @@ Gen 3 **MOVE TYPE INFO** adds colored move labels and a read-only type matchup. 
 Gen 1 boot/title art uses a whole physical-pixel scale when retro-v3 is selected. This prevents the rounded LCD sampling grid from discarding thin strokes in the Red/Blue version ribbon. The original Red/Blue cinematic bars extend across the surround, using the original palette and fade. Yellow retains its own intro and title artwork.
 
 All three generations use one shared type palette for battle move names and move-editor lists. Known/eligible moves, full categorized lists and type labels are colored; PP, controls and unrelated text keep their normal colors. Gen 1/2 recolor the native glyph ink without replacing the font. Gen 3 uses its native list foreground-color support. Move eligibility, teaching and stats are unchanged.
+
+### Follower transitions in 3.1.4
+
+Door warps gather the group at your arrival tile; followers then fan out along your actual steps. Connected routes retain the existing trail and animation progress across all three generations. Yellow keeps its native special Pikachu. Surf/Fly eligibility and follower artwork remain governed by the existing travel rules.
+
+Validation: the ROM-free transition regression plus all version integration suites pass. Device checks on engine 0.3.91 covered Blue and Yellow at Pallet/Route 1, Crystal at New Bark/Route 29, and FireRed/Emerald north connections. Blue’s house entry/exit was also inspected visually. These checks do not claim exhaustive coverage of every map or scripted warp.

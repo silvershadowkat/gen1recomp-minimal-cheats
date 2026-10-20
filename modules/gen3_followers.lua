@@ -6,6 +6,28 @@ local Collision=require("src.core.game3.collision")
 local Moves=require("src.core.game3.field_moves")
 local images, trail = {}, {}
 local lastMap, lastX, lastY
+local connecting = false
+local originalConnection = Collision.tryConnection
+Collision.tryConnection = function(game, ...)
+  local x, y = Player.cellX, Player.cellY
+  connecting = true
+  local ok, result = pcall(originalConnection, game, ...)
+  connecting = false
+  if not ok then error(result, 0) end
+  if result and lastX then
+    local dx, dy = Player.cellX - x, Player.cellY - y
+    for _, cell in ipairs(trail) do
+      cell.x, cell.y = cell.x + dx, cell.y + dy
+    end
+    lastX, lastY = lastX + dx, lastY + dy
+    local s = shared.gen3Session()
+    lastMap = s and s.map
+  end
+  return result
+end
+mod.events:on("map.entered", function()
+  if not connecting then lastMap, lastX, lastY = nil, nil, nil end
+end)
 local function renderer(mon)
   local species = Pokemon.speciesOf(mon)
   local national = Pokemon.national(species)
