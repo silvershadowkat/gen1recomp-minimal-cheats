@@ -174,6 +174,7 @@ local menuDefs = {
   end,
 }
 
+shared.modDeckMenus = menuDefs
 mod.content.screens:register(ROOT, { new = function(game)
   local items = {
     screen("BATTLE", SCREENS.battle), screen("CAPTURE", SCREENS.capture),

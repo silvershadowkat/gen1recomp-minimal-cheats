@@ -133,6 +133,7 @@ local defs = {
   end,
 }
 
+shared.modDeckMenus = defs
 local rootItems = {
   screen("BATTLE", SCREENS.battle),
   screen("POKEMON", SCREENS.pokemon),

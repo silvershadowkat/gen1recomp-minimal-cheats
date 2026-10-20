@@ -7,11 +7,11 @@ local id="silvershadow_gen3"
 local menu={isMenu=true}
 local pages={}
 local function toggle(label,key,default)
-  return {text=label,value=function() return shared.bool(key,default) and "ON" or "OFF" end,
+  return {text=label,key=key,kind="toggle",default=default,value=function() return shared.bool(key,default) and "ON" or "OFF" end,
     run=function() shared.set(key,not shared.bool(key,default)) end}
 end
 local function choice(label,key,values,default)
-  return {text=label,value=function() return tostring(shared.allowed(key,values,default)):upper() end,
+  return {text=label,key=key,kind="choice",values=values,default=default,value=function() return tostring(shared.allowed(key,values,default)):upper() end,
     run=function() shared.cycle(key,values,default) end}
 end
 local function action(label,fn) return {text=label,run=fn} end
@@ -244,6 +244,8 @@ local function collection()
     submenu("AREA DEXNAV",function()return dexPicker(shared.gen3LocalSpecies())end),
     submenu("UNCAUGHT AREA",function()return dexPicker(shared.gen3LocalSpecies(true))end)}
 end
+shared.modDeckMenus={battle=battle,healing=healing,movement=movement,pokemon=fieldTools,capture=collection}
+shared.refreshModDeckOptions=function()if menu.list then refresh()end end
 function shared.openGen3Options()
   shared.ensureGen3DexNav()
   pages={}

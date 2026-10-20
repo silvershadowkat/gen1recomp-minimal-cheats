@@ -1,7 +1,7 @@
 {
   "id": "minimal_cheats",
   "name": "SilverShadow Mods",
-  "version": "3.1.10",
+  "version": "3.2.0",
   "api": 2,
   "entry": "main.lua",
   "games": [

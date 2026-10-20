@@ -1,3 +1,9 @@
+# 3.2.0 — Mod Deck live cheat settings
+
+- Add a local data-only bridge for the active game/save across all eleven versions. Reuse the in-game option definitions and setting setters; expose cheat toggles and multipliers without tools/editors/actions.
+- Sync both directions, including an already open SilverShadow options menu. Validate session, game, expected previous value, setting key and allowed values; acknowledge applied/rejected requests. Retain link-play restrictions and normal in-game save semantics.
+- Pair with Mod Deck 0.5.38 (build 115): active-game heading, live values, pending acknowledgements and disabled controls when disconnected. Existing native cheat adapters and controller helpers remain unchanged.
+
 # 3.1.10 — Post-catch nickname prompt
 
 - Keep Gen 1 nickname YES/NO prompts on the modern 256×192 canvas when they appear above battle dialogue. Preserve native choice callbacks, caught Pokemon storage, Pokedex registration and name-entry screens. Party and PC confirmations retain their own layout.
