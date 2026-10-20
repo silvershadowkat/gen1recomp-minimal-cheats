@@ -9,8 +9,23 @@ local Font = require("src.render.Font")
 local Chrome = gen2 and require("src.ui.gen2.Chrome")
 local g = love.graphics
 local A=shared.battleAssets
-local W,H = 304,228
-local function enabled() return shared.bool("modern_battle_hud", true) end
+-- 256x192 fills the Nova at an exact 5x, matching its overworld grid and
+-- keeping imported Gen3 glyphs and sprites at one common source-pixel size.
+local W,H = 256,192
+-- Native party/bag/choice states are authored on a 160x144 surface. Keep
+-- their background battle on that same surface for the lifetime of the menu.
+local function nativeOverlay()
+  if gen2 then return false end
+  local states=shared.game and shared.game.stack and shared.game.stack.states or {}
+  local found=false
+  for _,state in ipairs(states)do
+    if getmetatable(state)==B then found=true
+    elseif found and getmetatable(state)~=B.StatBox
+      and not(state.itemBox and state.kind=='bag')then return true end
+  end
+  return false
+end
+local function enabled() return shared.bool("modern_battle_hud", true) and not nativeOverlay() end
 shared.modernBattleEnabled = enabled
 local function wrap(name, fn)
   local original = B[name]
@@ -19,10 +34,33 @@ local function wrap(name, fn)
     return original(self,...)
   end
 end
-wrap("wideLayout",function() return true end)
+for _,name in ipairs(gen2 and {"wideLayout"}or {"wideLayout","isWideBattleLayout"})do
+  local original=B[name]
+  B[name]=function(self,...)
+    if shared.bool("modern_battle_hud",true)then return not nativeOverlay()end
+    return original(self,...)
+  end
+end
 wrap("wantsFillScale",function() return true end)
+if not gen2 then
+  local fill=B.wantsFillScale
+  B.wantsFillScale=function(self,...)
+    if shared.bool("modern_battle_hud",true)and nativeOverlay()then return false end
+    return fill(self,...)
+  end
+end
 wrap("extendedHUD",function() return false end)
 if not gen2 then
+  local List=require('src.ui.ListMenu')
+  local palettes=List.sgbPalettes
+  List.sgbPalettes=function(self,game)
+    if self.itemBox and self.kind=='bag'and enabled()then
+      for _,s in ipairs(game.stack.states)do
+        if getmetatable(s)==B then return {{colors=false,x=0,y=0,w=160,h=H}}end
+      end
+    end
+    return palettes(self,game)
+  end
   wrap("uiSize",function() return W,H end)
   wrap("sgbPalettes",function() return {{colors=false,x=0,y=0,w=W,h=H}} end)
 end
@@ -47,23 +85,24 @@ local function bar(x,y,w,fraction,color)
   g.setColor(.85,.88,.82,1);g.rectangle("fill",x+1,y+1,w-2,4)
   g.setColor(color);g.rectangle("fill",x+1,y+1,math.floor((w-2)*math.max(0,math.min(1,fraction))),4)
 end
-local function panel(name,level,status,hp,maxhp,player,caught,exp,gender)
-  local x,y=player and 160 or 8,player and 126 or 16
+local function panel(name,level,status,hp,maxhp,player,caught,exp,gender,hpFraction)
+  local x,y=player and 128 or 8,player and 104 or 16
   if A and A.init() then
     local c=A.chrome
-    g.push();g.translate(player and 156 or 8,y);g.scale(1.3,1.3)
+    g.push();g.translate(x,y)
     if player then c.drawPlayerBox(0,0) else c.drawEnemyBox(0,0) end
-    local nx=player and 18 or 10
-    local nm,nw=A.fit(name,gender and 46 or 54,true)
-    A.text(nm,nx,4,false,true)
-    if gender then A.text(gender,nx+nw,4,false,true)end
-    A.text("Lv"..tostring(level or 1),player and 75 or 67,4,false,true)
+    local nx=player and 16 or 8
+    local nm,nw=A.fit(name,gender and 52 or 60,true)
+    A.text(nm,nx,3,false,true)
+    if gender then A.text(gender,nx+nw,3,false,true)end
+    A.text("Lv"..tostring(level or 1),player and 77 or 69,3,false,true)
     if player then g.setColor(1,1,222/255,1);g.rectangle("fill",56,21,40,11)end
-    c.drawHpBar(player and 32 or 24,16,hp,maxhp)
+    c.drawHpBar(player and 32 or 24,16,hp,maxhp,hpFraction)
     if caught then c.drawCaughtBall(8,17)end
     if status then A.text(status,player and 13 or 2,22,false,true)end
     if player then
-      A.text(("%3d/%3d"):format(hp,maxhp),56,21,false,true)
+      A.text(("%3d/"):format(hp),60,21,false,true)
+      A.text(("%3d"):format(maxhp),80,21,false,true)
       if exp then c.drawExpBar(32,32,exp)end
     end
     g.pop()
@@ -76,13 +115,29 @@ local function panel(name,level,status,hp,maxhp,player,caught,exp,gender)
   if gender then label(gender,x+8,y+20) end
   if caught then g.setColor(.72,.29,.27,1);g.circle("fill",x+13,y+24,3) end
   label("HP",x+24,y+21)
-  local f=(maxhp or 0)>0 and hp/maxhp or 0
+  local f=hpFraction or ((maxhp or 0)>0 and hp/maxhp or 0)
   bar(x+44,y+22,84,f,f>.5 and {.25,.70,.48,1} or f>.2 and {.91,.69,.25,1} or {.84,.31,.29,1})
   if player then
     label(("%d/%d"):format(hp,maxhp),x+64,y+32)
     if exp then bar(x+8,y+43,120,exp,{.29,.61,.85,1}) end
   end
 end
+local function smoothHp(b,side,mon,target)
+  target=math.max(0,math.min(1,target))
+  b._silverHpVisual=b._silverHpVisual or {}
+  local state=b._silverHpVisual[side]
+  local now=love.timer and love.timer.getTime and love.timer.getTime()
+  if not state or state.mon~=mon then
+    state={mon=mon,value=target,time=now};b._silverHpVisual[side]=state
+  else
+    local dt=now and state.time and math.max(0,now-state.time)or 1/60
+    state.value=state.value+(target-state.value)*math.min(1,dt*30)
+    if math.abs(state.value-target)<.0001 then state.value=target end
+    state.time=now
+  end
+  return state.value
+end
+shared.battleSmoothHp=smoothHp
 local function modernHud(b)
   if not b:statusHUDVisible() then return end
   if gen2 then
@@ -93,7 +148,8 @@ local function modernHud(b)
         panel(b:name(m),player and b.shownLevel or m.level,b:statusTag(m,side),
           math.floor(b:hudHp(m,side)),m.maxHp or (m.stats and m.stats.hp) or 1,
           player,not player and b.battle.wild and b.caughtMark,
-          player and (b.shownExp or 0)/64 or nil,b:genderSymbol(m))
+          player and (b.shownExp or 0)/64 or nil,b:genderSymbol(m),
+          smoothHp(b,side,m,b:hudHpPixels(m,side)/48))
       end
     end
   else
@@ -115,13 +171,15 @@ local function modernHud(b)
         local dex=b.game.save.pokedex
         panel(v.name,v.mon.level,v.shownStatus and b:statusLabel({status=v.shownStatus}),
           math.max(0,math.floor(v.shownHP or v.mon.hp or 0)),v.mon.stats.hp,player,
-          not player and b.kind=="wild" and dex and dex.owned and dex.owned[v.mon.species],exp)
+          not player and b.kind=="wild" and dex and dex.owned and dex.owned[v.mon.species],exp,nil,
+          smoothHp(b,side,v.mon,(v.shownPx or ((v.shownHP or v.mon.hp)/v.mon.stats.hp*48))/48))
       end
     end
   end
 end
 local surface, fieldQuad, bottomQuad, infoQuad
 local captureActive=false
+local captureBattle
 if gen2 then
   wrap("moveGridNavigation",function()return true end)
   local pass
@@ -131,6 +189,16 @@ if gen2 then
     return expBurst(self,...)
   end
   local AV=require("src.ui.gen2.BattleAnimView")
+  local presentSlide=AV.presentSlide
+  AV.presentSlide=function(self,frame,drawBg,drawBackpic)
+    if not(captureActive and pass and captureBattle)then return presentSlide(self,frame,drawBg,drawBackpic)end
+    local remaining=1-math.max(0,math.min(1,frame/AV.SLIDE_FRAMES))
+    local old=captureBattle.slidingBackpic
+    captureBattle.slidingBackpic=nil
+    g.push('all');g.translate((pass=='player'and 1 or -1)*W*remaining,0)
+    drawBg();g.pop()
+    captureBattle.slidingBackpic=old
+  end
   local picDraw,objects,fill,field=B.drawPic,AV.drawObjects,AV.fillBackground,Wide.drawField
   B.drawPic=function(self,mon,back)
     if captureActive and pass and (back and "player"or "enemy")~=pass then return end
@@ -153,7 +221,7 @@ if gen2 then
     local moved={}
     for _,s in ipairs(sprites)do
       local v={};for k,value in pairs(s)do v[k]=value end
-      v.x=v.x+math.floor(20+108*t+.5);v.y=v.y+math.floor(8*(1-t)+.5)
+      v.x=v.x+math.floor(16+48*t+.5);v.y=v.y+math.floor(28*(1-t)+.5)
       moved[#moved+1]=v
     end
     local proxy=setmetatable({oam=function()return moved end},{__index=runner})
@@ -164,14 +232,14 @@ if gen2 then
     if not b:hasBattleSides()then return false end
     for _,side in ipairs({"player","enemy"})do
       pass=side
-      g.push();g.translate(side=="player"and 20 or 128,side=="player"and 8 or 0)
+      g.push();g.translate(side=="player"and 16 or 64,side=="player"and 28 or 0)
       b:drawSceneBody(function()b:drawPics()end)
       g.pop()
     end
     pass=nil
     if b.anim and b.animView then b.animView:drawObjects(b.anim,b.battle)end
     if b.expBurst then
-      g.push();g.translate(144,0);b:drawExpBurst();g.pop()
+      g.push();g.translate(80,0);b:drawExpBurst();g.pop()
     end
     return true
   end
@@ -188,17 +256,29 @@ if gen2 then
     return frame(self,mon)
   end
 else
-  local scale,speciesSprite=B.resolveBattleScale,B.speciesSprite
+  local balls=B.drawBallRow
+  B.drawBallRow=function(self,...)
+    if captureActive then return end
+    return balls(self,...)
+  end
+  local pics=B.drawPicsLayer
+  B.drawPicsLayer=function(self,slide,sx,sy,side,skipMenuClip)
+    if not(captureActive and side)then return pics(self,slide,sx,sy,side,skipMenuClip)end
+    g.push('all');g.setScissor(0,0,W,104)
+    g.translate(side=='enemy'and -64 or -4,side=='player'and 10 or 0)
+    local ok,err=pcall(pics,self,slide*2,sx,sy,side,skipMenuClip)
+    g.pop();if not ok then error(err,0)end
+  end
+  local animOffset=Wide.animationOffset
+  Wide.animationOffset=function(sprites)
+    local x,y=animOffset(sprites)
+    if captureActive then x=math.floor(16+(x-20)*56/116+.5)end
+    return x,y
+  end
+  local scale=B.resolveBattleScale
   B.resolveBattleScale=function(data,side,path,species)
     if captureActive and not path then return 1 end
     return scale(data,side,path,species)
-  end
-  B.speciesSprite=function(self,species,back)
-    if enabled()then
-      local pic=A.pic(self.data,species,back)
-      if pic then return pic end
-    end
-    return speciesSprite(self,species,back)
   end
 end
 local originalWide = Wide.draw
@@ -236,6 +316,7 @@ local function nativeSurface(b,regular)
     if img and b[key]then trainerSaved[key]={value=b[key]};b[key]=img end
   end
   captureActive=regular and A.init()
+  captureBattle=b
   if captureActive then
     if gen2 then
       local img=A.trainer(b.enemyTrainerClass,false)
@@ -274,6 +355,7 @@ local function nativeSurface(b,regular)
   end)
   b._silverModernCapture=nil
   captureActive=false
+  captureBattle=nil
   for v,sprite in pairs(originalSprites)do v.sprite=sprite end
   for key,original in pairs(trainerSaved)do b[key]=original.value end
   b.statusHUDVisible,b.drawEnemyHud,b.drawPlayerHud=oldStatus,oldEnemy,oldPlayer
@@ -289,7 +371,7 @@ local typeColors={NORMAL={.35,.35,.30,1},FIRE={.74,.23,.10,1},WATER={.13,.35,.72
   GRASS={.21,.48,.15,1},ELECTRIC={.57,.43,.02,1},ICE={.10,.47,.50,1},FIGHTING={.65,.18,.15,1},
   POISON={.51,.23,.60,1},GROUND={.55,.35,.12,1},FLYING={.40,.32,.69,1},PSYCHIC={.70,.20,.46,1},
   BUG={.36,.46,.07,1},ROCK={.49,.40,.17,1},GHOST={.36,.25,.52,1},DRAGON={.36,.20,.73,1},
-  DARK={.32,.24,.20,1},STEEL={.33,.39,.45,1}}
+  DARK={.32,.24,.20,1},STEEL={.28,.44,.58,1}}
 local function moveInfo(b,move)
   local data=b.data or b.game.data
   local def=move and data.moves[move.id]
@@ -326,7 +408,7 @@ local function romBottom(b)
   if not b:bottomUIVisible()then return end
   local moves=b.phase==(gen2 and "moves" or "moveSelect") or (not gen2 and b.phase=="mimicSelect")
   local menu=b.phase=="menu"
-  g.push();g.translate(0,68);g.scale(W/240,1)
+  g.push();g.translate(0,H-160);g.scale(W/240,1)
   A.chrome.drawPanel(menu and "menu" or moves and "moves" or "message")
   g.pop()
   local function txt(text,x,y,white,small) A.text(text,x,y,white,small)end
@@ -334,10 +416,10 @@ local function romBottom(b)
   if menu then
     local names=gen2 and b:menuLabels() or b.safari and {"BALL","BAIT","ROCK","RUN"} or {"FIGHT","POKéMON","BAG","RUN"}
     local who=gen2 and b:name(b:activeMon("player")) or b.player and b.player.name or ""
-    txt("What will",10,186,true);txt(who.." do?",10,202,true)
-    if b.safari then txt("BALLS: "..tostring(b.safari.balls),10,202,true)end
+    txt("What will",12,152,true);txt(who.." do?",12,168,true)
+    if b.safari then txt("BALLS: "..tostring(b.safari.balls),12,168,true)end
     for i,name in ipairs(names)do
-      local x=184+((i-1)%2)*60;local y=188+math.floor((i-1)/2)*16
+      local x=152+((i-1)%2)*52;local y=152+math.floor((i-1)/2)*16
       txt(name:gsub("<PK><MN>","POKéMON"),x,y,false,true)
       if b.menuIndex==i then cursor(x-9,y)end
     end
@@ -347,8 +429,8 @@ local function romBottom(b)
     local data=b.data or b.game.data
     for i,m in ipairs(list)do
       local def=data.moves[m.id]
-      local x=24+((i-1)%2)*94
-      local y=186+math.floor((i-1)/2)*17
+      local x=16+((i-1)%2)*80
+      local y=152+math.floor((i-1)/2)*17
       local _,color=moveInfo(b,m)
       A.text(def and def.name or m.id,x,y,false,true,color)
       if selected==i then txt(">",x-9,y,false,true)end
@@ -358,19 +440,19 @@ local function romBottom(b)
     if move and def then
       local max=gen2 and require("src.battle.gen2.Mon").maxPpOf(move,data)
         or require("src.pokemon.Pokemon").maxPP(def.pp,move.ppUps)
-      g.setColor(1,1,1,1);g.rectangle("fill",212,184,84,39)
+      g.setColor(1,1,1,1);g.rectangle("fill",180,151,68,35)
       local typ,color,effect=moveInfo(b,move)
-      txt(("PP %d/%d"):format(move.pp or 0,max),222,185,false,true)
-      A.text(typ,222,197,false,true,color)
-      txt(effect,222,209,false,true)
+      txt(("PP %d/%d"):format(move.pp or 0,max),184,149,false,true)
+      A.text(typ,184,161,false,true,color)
+      txt(effect,184,173,false,true)
     end
   elseif gen2 then
     b:syncTyper()
-    for i,line in ipairs(b:messageLines())do if i<=2 then txt(line,16,188+(i-1)*16,true)end end
-    if b:messageArrowVisible()then txt("v",286,208,true)end
+    for i,line in ipairs(b:messageLines())do if i<=2 then txt(line,12,152+(i-1)*16,true)end end
+    if b:messageArrowVisible()then txt("v",240,172,true)end
   else
-    for i,line in ipairs(b.shown or {})do if i<=2 then txt(decoded(b,line),16,188+(i-1)*16+(b.scrollPx or 0),true)end end
-    if (b.msgWaiting or b.msgPrompt)and b.frame%60<30 then txt("v",286,208,true)end
+    for i,line in ipairs(b.shown or {})do if i<=2 then txt(decoded(b,line),12,152+(i-1)*16+(b.scrollPx or 0),true)end end
+    if (b.msgWaiting or b.msgPrompt)and b.frame%60<30 then txt("v",240,172,true)end
   end
 end
 local function terrain(b)
@@ -394,13 +476,62 @@ local function terrain(b)
   return "building"
 end
 shared.battleTerrain=terrain
+local function statsCard(game,mon,name)
+  local stats=mon.stats or {}
+  if gen2 then
+    local M=require('src.battle.gen2.Mon');local def=game.data.pokemon[M.partySpecies(mon)]
+    if def and def.baseStats then stats=M.stats(def.baseStats,mon.dvs,mon.level,mon.statExp)end
+  end
+  g.push('all');g.setShader()
+  g.setColor(.12,.19,.21,1);g.rectangle('fill',0,0,W,H)
+  if A.init()then A.chrome.drawWindow(16,12,224,168)else box(16,12,224,168)end
+  local function text(s,x,y,small)if A.ready then A.text(s,x,y,false,small)else label(s,x,y)end end
+  text('LEVEL UP',32,20)
+  text(name or tostring(mon.species),32,38,true)
+  text('Lv '..tostring(mon.level),32,53,true)
+  local pic=A.pic(game.data,mon.species,false,mon)
+  if pic then g.setColor(1,1,1,1);g.draw(pic,32,76)end
+  local rows={{'HP',stats.hp or mon.maxHp},{'ATTACK',stats.attack},{'DEFENSE',stats.defense}}
+  if gen2 then rows[#rows+1]={'SP. ATK',stats.specialAttack};rows[#rows+1]={'SP. DEF',stats.specialDefense}
+  else rows[#rows+1]={'SPECIAL',stats.special}end
+  rows[#rows+1]={'SPEED',stats.speed}
+  for i,row in ipairs(rows)do
+    local y=52+(i-1)*18;text(row[1],112,y,true)
+    local n=tostring(row[2]or 0);local width
+    if A.ready then local fitted;fitted,width=A.fit(n,40,true)end
+    text(n,216-(width or #n*6),y,true)
+  end
+  text('A / B: CLOSE',32,160,true)
+  g.pop()
+end
+shared.battleStatsCard=statsCard
+if not gen2 then
+  local StatBox=B.StatBox;local originalStats=StatBox.draw
+  local function active(self)
+    if not enabled()then return false end
+    for _,s in ipairs(self.game.stack.states)do if s~=self and getmetatable(s)==B then return true end end
+    return false
+  end
+  StatBox.isWideBattleLayout=active
+  StatBox.uiSize=function(self)if active(self)then return W,H end;return 160,144 end
+  StatBox.wantsFillScale=active
+  StatBox.draw=function(self)
+    if not active(self)then return originalStats(self)end
+    local name=self.mon.nickname
+    if type(name)~='string'then name=self.mon.species end
+    return statsCard(self.game,self.mon,name)
+  end
+end
 local function draw(b)
+  if gen2 and b.phase=='stats-box'and b.statsBoxMon then
+    return statsCard(b.game,b.statsBoxMon,b:name(b.statsBoxMon))
+  end
   local regular=not gen2 or (b.phase=="menu" or b.phase=="moves" or b.phase=="resolving" or b.phase=="intro")
   nativeSurface(b,regular)
   g.push("all");g.setShader()
   g.setColor(.81,.89,.87,1);g.rectangle("fill",0,0,W,H)
   if A.init()then
-    g.push();g.scale(W/240,180/112);A.chrome.drawTerrain(terrain(b));g.pop()
+    g.push();g.scale(W/240,144/112);A.chrome.drawTerrain(terrain(b));g.pop()
   else
     g.setColor(.73,.83,.76,1);g.ellipse("fill",242,106,54,13)
     g.setColor(.68,.79,.70,1);g.ellipse("fill",72,153,68,16)
@@ -412,7 +543,14 @@ local function draw(b)
     local cut=gen2 and 112 or 104
     fieldQuad=fieldQuad or g.newQuad(0,0,304,cut,304,144)
     bottomQuad=bottomQuad or g.newQuad(0,cut,304,144-cut,304,144)
-    g.draw(surface,fieldQuad,0,56)
+    g.draw(surface,fieldQuad,0,gen2 and 32 or 40)
+    if not gen2 and b.introBalls and A.ready then
+      if b.kind=="trainer"then A.chrome.drawPartyBar(b.enemyParty,112,72,true)end
+      A.chrome.drawPartyBar(b.playerParty or b.game.save.party,136,128,false)
+    elseif gen2 and b.ballRows and A.ready then
+      if b.ballRows.enemy then A.chrome.drawPartyBar(b.battle and b.battle.enemyParty,112,56,true)end
+      if b.ballRows.player then A.chrome.drawPartyBar(b.battle and b.battle.party,136,128,false)end
+    end
     modernHud(b)
     if A.init()then romBottom(b)
     else g.setColor(1,1,1,1);g.draw(surface,bottomQuad,0,H-(144-cut))end
@@ -428,9 +566,28 @@ local function draw(b)
   g.pop()
 end
 if gen2 then
+  local function modernPhase(b)
+    return b and (b.phase=='stats-box'or b.phase=='menu'or b.phase=='moves'
+      or b.phase=='resolving'or b.phase=='intro')
+  end
+  -- ShaderFX must sample the lattice actually painted by this battle, rather
+  -- than the engine's native 160x144 fit. Leave other screens on their own fit.
+  local Game2=require('src.core.Game2')
+  local frameFit=Game2.frameFit
+  Game2.frameFit=function(self,w,h)
+    local scale,ox,oy,dpi,pw,ph=frameFit(self,w,h)
+    local top=self.stack and self.stack:top()
+    if enabled()and getmetatable(top)==B and modernPhase(top)then
+      local x,y,cw,ch=Chrome.playfieldRect(w,h)
+      scale=math.min(cw/W,ch/H)
+      ox,oy=x+(cw-W*scale)/2,y+(ch-H*scale)/2
+    end
+    return scale,ox,oy,dpi,pw,ph
+  end
   local original=B.drawWidescreen
   B.drawWidescreen=function(self,winW,winH)
     if not enabled() then return original(self,winW,winH) end
+    if not modernPhase(self)then return original(self,winW,winH)end
     local px,py,pw,ph=Chrome.playfieldRect(winW,winH)
     local scale=math.min(pw/W,ph/H)
     g.push("all");Chrome.clipTo(px,py,pw,ph)

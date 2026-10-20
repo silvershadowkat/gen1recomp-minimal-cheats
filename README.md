@@ -1,12 +1,12 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.1 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.1.2 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
 ## Install
 
-Use the packaged silvershadow-mods-v3.1.1.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.1.2.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 
@@ -22,7 +22,7 @@ Open **START → SILVERSHADOW**. Gen 3 uses native menus and data structures, in
 
 L/R page through long catalogues. Battle cheats default off; follower count defaults to one. Settings remain scoped by the engine's mod-save system.
 
-Version 3.1.1 keeps Shader FX intermediate canvases at explicit pixel resolution on high-DPI devices, avoiding uneven LCD grids and triangular shading from implicit DPI upscaling. It also removes retro-v3's tiny coordinate stretch from the loaded shader to keep grid-line thickness consistent. These corrections apply to all three generations and leave shader selection and parameters under your control; they do not add blur or modify preset files.
+Version 3.1.2 keeps Shader FX intermediate canvases at explicit pixel resolution on high-DPI devices, avoiding uneven LCD grids and triangular shading from implicit DPI upscaling. It also removes retro-v3's tiny coordinate stretch from the loaded shader to keep grid-line thickness consistent. These corrections apply to all three generations and leave shader selection and parameters under your control; they do not add blur or modify preset files.
 
 Engine 0.3.91 includes **Shader FX** with LCD presets; the separate SilverShadow LCD mod is optional and should be disabled when using a built-in LCD preset.
 
@@ -113,3 +113,9 @@ See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for references and license 
 ## Disclaimer
 
 This unofficial community mod is not affiliated with or endorsed by Nintendo, The Pokemon Company, Game Freak, or the Gen1Recomp developers.
+
+### Battle and menu presentation in 3.1.2
+
+Gen 1/2 modern battles and Gen 3 4:3 battles use a 256×192 logical canvas (exactly 5× on the 1280×960 Nova). Gen 2 Party/Pack panels reflow to that canvas; Gen 3 Party/Bag backgrounds extend their own background artwork while retaining native font, icon and control sizes. Other screens keep their authored layouts. The Gen 2 shader receives the actual active layout scale, preventing a 6× LCD grid from resampling 5× battle artwork.
+
+Gen 3 **MOVE TYPE INFO** adds colored move labels and a read-only type matchup. It is a type preview, not a damage prediction. Double battles follow the selected opponent; mixed spread matchups show VARIES. Native scenario backgrounds, battle rules and trainer-catching restrictions are preserved.

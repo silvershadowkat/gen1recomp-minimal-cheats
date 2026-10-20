@@ -46,6 +46,8 @@ end
 local function battle()
   return {
     toggle("INSTANT TEXT","instant_text",true),
+    toggle("4:3 BATTLE VIEW","modern_battle_hud",true),
+    toggle("MOVE TYPE INFO","battle_move_info",true),
     choice("EXP MULT", "exp_multiplier",shared.EXP_MULTIPLIERS,1),
     choice("DAMAGE", "damage_multiplier",shared.DAMAGE_MODES,1),
     toggle("INFINITE HP","infinite_hp",false),toggle("INFINITE PP","infinite_pp",false),

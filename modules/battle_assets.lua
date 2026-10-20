@@ -54,6 +54,7 @@ function A.init()
   C.textbox=image("pokemon/battle/textbox.rgba",256,512)
   C.elements=image("pokemon/battle/elements.rgba",320,24)
   C.exp=image("pokemon/battle/elements_exp.rgba",320,24)
+  C.partyBar=image("pokemon/battle/party_summary_bar.rgba",128,8)
   A.fonts={}
   for _,face in ipairs({"normal","small"})do
     local f="chrome/fonts/latin_"..face
@@ -66,16 +67,48 @@ function A.init()
 end
 function C.drawPlayerBox(x,y)g.setColor(1,1,1,1);g.draw(C.player,x,y)end
 function C.drawEnemyBox(x,y)g.setColor(1,1,1,1);g.draw(C.enemy,x,y)end
+function C.drawPartyBar(party,x,y,opponent)
+  g.setColor(1,1,1,1)
+  if C.partyBar then g.draw(C.partyBar,x,y,0,opponent and -1 or 1,1)end
+  for i=1,6 do
+    local mon=(party or {})[i]
+    local id=not mon and 67 or (mon.hp or 0)<=0 and 69
+      or (mon.status and mon.status~=0 and mon.status~=''and mon.status~='NONE')and 68 or 66
+    local bx=opponent and x-24-10*(6-i)or x+24+10*(i-1)
+    tile(C.elements,id,bx,y-8)
+  end
+end
+function C.drawWindow(x,y,w,h)
+  g.setColor(1,1,1,1);g.rectangle('fill',x+4,y+4,w-8,h-8)
+  -- The move-panel border, tiled at its native pixel size.
+  local function part(sx,sy,sw,sh,dx,dy)region(C.textbox,sx,432+sy,sw,sh,dx,dy)end
+  for xx=8,w-9,8 do local n=math.min(8,w-8-xx)
+    part(8,0,n,8,x+xx,y);part(8,40,n,8,x+xx,y+h-8)end
+  for yy=8,h-9,8 do local n=math.min(8,h-8-yy)
+    part(0,8,8,n,x,y+yy);part(152,8,8,n,x+w-8,y+yy)end
+  part(0,0,8,8,x,y);part(152,0,8,8,x+w-8,y)
+  part(0,40,8,8,x,y+h-8);part(152,40,8,8,x+w-8,y+h-8)
+end
 function C.drawPanel(mode)
   local offset=mode=="menu" and 160 or mode=="moves" and 320 or 0
   g.setColor(1,1,1,1);region(C.textbox,0,112+offset,240,48,0,112)
 end
-function C.drawHpBar(x,y,hp,maxHp)
+function C.drawHpBar(x,y,hp,maxHp,fraction,width)
   local f=maxHp>0 and math.max(0,math.min(1,hp/maxHp))or 0
-  local n=math.floor(f*48);if n==0 and hp>0 then n=1 end
-  local base=n>24 and 3 or n>9 and 47 or 56
+  f=math.max(0,math.min(1,fraction or f));width=width or 48
+  local n=f*width
+  local base=f>.5 and 3 or f>.2 and 47 or 56
   tile(C.elements,1,x,y);tile(C.elements,2,x+8,y)
-  for i=0,5 do tile(C.elements,base+math.max(0,math.min(8,n-i*8)),x+16+i*8,y)end
+  for i=0,width/8-1 do
+    tile(C.elements,base,x+16+i*8,y)
+    local fill=math.max(0,math.min(8,n-i*8))
+    if fill>0 then
+      local id=base+8;local sx,sy=(id%40)*8,math.floor(id/40)*8
+      if not C.hpFillQuad then C.hpFillQuad=g.newQuad(sx,sy,fill,8,C.elements:getDimensions())
+      else C.hpFillQuad:setViewport(sx,sy,fill,8,C.elements:getDimensions())end
+      g.setColor(1,1,1,1);g.draw(C.elements,C.hpFillQuad,x+16+i*8,y)
+    end
+  end
 end
 function C.drawExpBar(x,y,f)
   local n=math.floor(math.max(0,math.min(1,f))*64)
@@ -110,9 +143,9 @@ function A.text(text,x,y,white,small,color)
   for char in tostring(text or ""):gmatch("[%z\1-\127\194-\244][\128-\191]*")do
     local id=glyph[char]or 0xac
     local sx,sy=(id%16)*16,math.floor(id/16)*16
-    g.setColor(white and .38 or .83,white and .38 or .83,white and .38 or .80,1)
+    g.setColor(white and .38 or 27/31,white and .38 or 26/31,white and .38 or 22/31,1)
     region(f.shadow,sx,sy,16,16,pen,y)
-    if color then g.setColor(color) else g.setColor(white and 1 or .38,white and 1 or .38,white and 1 or .38,1)end
+    if color then g.setColor(color) else g.setColor(white and 1 or 8/31,white and 1 or 8/31,white and 1 or 8/31,1)end
     region(f.fg,sx,sy,16,16,pen,y)
     pen=pen+(f.widths[id]or 6)
   end

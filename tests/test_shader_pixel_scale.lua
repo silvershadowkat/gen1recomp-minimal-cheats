@@ -38,4 +38,23 @@ dofile('modules/shader_pixel_scale.lua')
 local ok,err=pcall(FX.render)
 assert(not ok and tostring(err):find('intentional test failure'))
 assert(love.graphics.newCanvas==original,'constructor not restored on failure')
+local captured,active
+FX={load=function()end,activeEntry=function()return active end,
+ render=function(...)captured={...}end}
+package.loaded['src.render.ShaderFX']=FX
+dofile('modules/shader_pixel_scale.lua')
+active={name='retro-v3.slangp'}
+local rect={x=0,y=0,w=1280,h=960,scale=1280/304}
+local src={w=304,h=228};local opts={originX=0,originY=0,layer='ui',mask=true}
+FX.render('canvas',rect,src,2,2,opts)
+assert(captured[2].scale==4 and captured[3].w==320 and captured[3].h==240)
+assert(captured[2].w==1280 and captured[2].h==960,'output extent changed')
+assert(captured[4]==2 and captured[5]==2 and captured[6]==opts,'render options lost')
+assert(rect.scale==1280/304 and src.w==304,'caller geometry mutated')
+rect.scale=5;FX.render('canvas',rect,src,2,2,opts)
+assert(captured[2]==rect and captured[3]==src,'integer overworld geometry changed')
+active={name='other.slangp'};rect.scale=1280/304
+FX.render('canvas',rect,src,2,2,opts)
+assert(captured[2]==rect and captured[3]==src,'other preset geometry changed')
+print('PASS fractional retro grid: whole-pixel scale, preserved output/options, unchanged integer frames and other presets')
 print('PASS shader pixel scale: physical targets, scoped override, error cleanup, exact retro-v3 phase, other presets unchanged')

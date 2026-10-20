@@ -102,5 +102,44 @@ local rows=hook("ui.start_menu.items",function(_,rows)return rows end,game,{})
 eq(rows[1].id,"silvershadow","menu entry")
 shared.openGen3Options()
 eq(require("src.ui.game3.stack").top().id,"silvershadow_gen3","native menu stack")
+-- Read-only move previews: no damage roll, RNG consumption or battle mutation.
+local Moves=require('src.core.game3.battle.moves')
+local oldGet=Moves.get
+local rows={
+ {id='SCRATCH',power=40,type=0,target=0,pp=35},
+ {id='GROWL',power=0,type=0,target=8,pp=40},
+ {id='EMBER',power=40,type=10,target=0,pp=25},
+ {id='SURF',power=95,type=11,target=8,pp=15},
+ {id='HIDDEN_POWER',power=1,type=0,target=0,pp=15},
+ {id='WEATHER_BALL',power=50,type=0,target=0,pp=10},
+ {id='SEISMIC_TOSS',power=1,type=1,target=0,pp=20},
+}
+Moves.get=function(i)return assert(rows[i])end
+local user={mon={moves={1,2,3,4},hp=20,pp={35,40,25,15}}}
+local foe={type1=12,type2=12,mon={hp=20}}
+local second={type1=10,type2=10,mon={hp=20}}
+local preview={player=user,enemy=foe,battlers={[0]=user,[1]=foe,[3]=second}}
+local info=assert(shared.gen3MoveInfo)
+eq(info(preview,user,3).effect,'TYPE 2x','Fire into Grass')
+eq(info(preview,user,2).effect,'STATUS','Growl is not damaging')
+foe.type2=5;eq(info(preview,user,3).effect,'TYPE 1x','dual-type product')
+preview.double=true
+eq(info(preview,user,3).effect,'PICK FOE','no guessed target in doubles')
+eq(info(preview,user,3,3).effect,'TYPE 1/2x','selected right target')
+foe.type1,foe.type2=5,5
+eq(info(preview,user,4).effect,'TYPE 2x','spread identical matchups')
+foe.type1,foe.type2=12,12;eq(info(preview,user,4).effect,'VARIES','spread different matchups')
+second.ability='WATER_ABSORB';eq(info(preview,user,4,3).effect,'IMMUNE','absorbing ability')
+preview.double=false;foe.type1,foe.type2=7,7
+eq(info(preview,user,1).effect,'TYPE 0x','Normal into Ghost')
+foe.expIdentified=true;eq(info(preview,user,1).effect,'TYPE 1x','Foresight')
+user.mon.moves[1]=5;user.mon.ivs={hp=31,atk=31,def=31,spe=31,spa=31,spd=31}
+eq(info(preview,user,1).type,17,'Hidden Power from actual IVs')
+user.mon.moves[1]=6;preview.weather='RAIN'
+eq(info(preview,user,1).type,11,'Weather Ball in rain')
+second.ability='CLOUD_NINE';eq(info(preview,user,1).type,0,'weather suppression')
+user.mon.moves[1]=7;eq(info(preview,user,1).effect,'SPECIAL','fixed damage has no false multiplier')
+eq(user.mon.hp,20,'preview never changes HP');eq(user.mon.pp[1],35,'preview never spends PP')
+Moves.get=oldGet
 print("SilverShadow "..version.." engine integration: "..checks.." checks passed")
 

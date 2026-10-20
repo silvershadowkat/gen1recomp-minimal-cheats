@@ -27,9 +27,26 @@ FX.load=function(entry,...)
  return state,err
 end
 local render=FX.render
+local function alignedRender(canvas,rect,source,...)
+ -- Fill layouts (including the 304x228 custom battle) can use fractional
+ -- physical scales. A hard LCD mask cannot repeat evenly at 4.2105 pixels.
+ -- Give retro-v3 the nearest whole-pixel sampling lattice; keep the output
+ -- rectangle unchanged and leave integer-scaled overworld frames untouched.
+ local entry=FX.activeEntry and FX.activeEntry('main')
+ local s=rect and tonumber(rect.scale)
+ if entry and entry.name=='retro-v3.slangp'and s and s>=1 and s~=math.floor(s) then
+  local r,src={},{}
+  for k,v in pairs(rect)do r[k]=v end
+  for k,v in pairs(source)do src[k]=v end
+  r.scale=math.max(1,math.floor(s+.5))
+  src.w,src.h=r.w/r.scale,r.h/r.scale
+  return render(canvas,r,src,...)
+ end
+ return render(canvas,rect,source,...)
+end
 local depth=0
 FX.render=function(...)
- if depth>0 then return render(...)end
+ if depth>0 then return alignedRender(...)end
  local create=love.graphics.newCanvas
  love.graphics.newCanvas=function(w,h,settings,...)
   if type(w)=='number'and type(h)=='number'then
@@ -41,7 +58,7 @@ FX.render=function(...)
   return create(w,h,settings,...)
  end
  depth=depth+1
- local ok,err=pcall(render,...)
+ local ok,err=pcall(alignedRender,...)
  depth=depth-1
  love.graphics.newCanvas=create
  if not ok then error(err,0)end

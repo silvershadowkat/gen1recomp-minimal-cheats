@@ -1,3 +1,12 @@
+# 3.1.2 — Battle layout and LCD refinements
+
+- Use a 256x192 battle canvas for an exact 5x pixel scale on the 1280x960 Nova. Preserve sharp native sprite and font proportions.
+- Repair native Gen 1 Bag/Party transitions, level-up stats, intro party balls, back-sprite baseline and entry clipping; interpolate native HP animation for smoother display.
+- Add a 4:3 battle view to FireRed, LeafGreen, Ruby, Sapphire and Emerald, retaining each game’s own terrain, chrome and controls. Party and Bag screens extend native backgrounds to 4:3 while preserving unscaled text, icons and controls.
+- Add colored move names and read-only type matchups to Gen 3. Respect selected double-battle targets; show VARIES for mixed spread matchups, STATUS for support moves and SPECIAL for fixed/conditional damage.
+- Reflow Gen 2 Party/Pack panels across 4:3, retain all six party rows and item submenus, and match the LCD sampling lattice to the actual battle/menu render scale.
+- Align fractional retro-v3 LCD grids without changing preset parameters or overworld zoom.
+
 # 3.1.1 — LCD shader pixel alignment
 
 - Remove retro-v3's tiny UV stretch in its loaded vertex shader so LCD grid lines keep a consistent phase and thickness. Applies to fresh and cached translations without modifying preset files.
