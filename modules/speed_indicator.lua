@@ -31,7 +31,7 @@ local function draw(game)
   local y = inset
   g.push("all")
   g.origin(); g.setShader(); g.setScissor(); g.setBlendMode("alpha")
-  g.setColor(0, 0, 0, .65); g.rectangle("fill", x, y, w, h)
+  g.setColor(0, 0, 0, .35); g.rectangle("fill", x, y, w, h)
   g.setColor(1, 1, 1, 1)
   for i = 1, #text do
     for row, bits in ipairs(glyphs[text:sub(i, i)] or glyphs["x"]) do
