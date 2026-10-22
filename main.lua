@@ -1,4 +1,4 @@
--- SilverShadow Mods 3.2.0
+-- SilverShadow Mods 3.3.0
 -- One entry point, deterministic module order, and one shared service table.
 
 return function(mod)
@@ -107,7 +107,9 @@ return function(mod)
     loadModule("modules/move_learning_presentation.lua",shared)
   end
   if shared.gameVersion=="yellow" then loadModule("modules/yellow_companion.lua",shared) end
+  loadModule("modules/batch_candy.lua",shared)
+  if shared.generation==3 then loadModule("modules/gen3_batch_candy.lua",shared)end
   loadModule("modules/moddeck_bridge.lua",shared)
   mod.exports.silvershadow = shared
-  mod.log:info("SilverShadow Mods 3.2.0 loaded for Gen %s", shared.generation)
+  mod.log:info("SilverShadow Mods 3.3.0 loaded for Gen %s", shared.generation)
 end

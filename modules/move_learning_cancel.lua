@@ -41,6 +41,22 @@ if S.generation==3 then
     end
     return cancel(...)
   end
+  -- Field item learning owns its YES/NO input in the native party screen.
+  local Party=require("src.ui.game3.party_menu")
+  local partyInput=Party.handleInput
+  Party.handleInput=function(input,...)
+    if stopQuestion and Learn.busy()and Learn.waitingChoice()
+        and Party.open and Party.mode=="yesno"and input:wasPressed("b")
+        and not input:wasPressed("a")and not input:wasPressed("up")and not input:wasPressed("down")then
+      Party._yesNoCursor=1
+      local proxy=setmetatable({wasPressed=function(_,key)
+        if key=="a"then return true elseif key=="b"then return false end
+        return input:wasPressed(key)
+      end},{__index=input})
+      return partyInput(proxy,...)
+    end
+    return partyInput(input,...)
+  end
   -- Move Reminder screens own their YES/NO controls rather than Choice.
   -- Ruby/Sapphire additionally own their learning dialogue implementation.
   for _,path in ipairs({"src.ui.game3.move_relearner","src.ui.game3.rse.move_relearner"})do

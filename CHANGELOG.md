@@ -1,3 +1,9 @@
+## 3.3.0
+
+- Add an automatic Rare Candy quantity picker across Gen 1-3. Apply each native level gain, move-learning check and evolution in sequence; consume only successful candies and show total level, HP and stat growth. Respect inventory, eggs, native restrictions and existing level caps. This is item functionality, not a cheat toggle or Mod Deck action.
+- Preserve the imported capture ball silhouette and rim in both wobble directions. Rotate only the painted interior on the native pixel grid, keeping Poké, Great, Safari, Ultra and Master Balls crisp without blur. Gen 2 exclusive balls retain their native art.
+- Let B exit the native Gen 3 party-screen stop-learning confirmation, including during a candy batch.
+
 # 3.2.0 — Mod Deck live cheat settings
 
 - Add a local data-only bridge for the active game/save across all eleven versions. Reuse the in-game option definitions and setting setters; expose cheat toggles and multipliers without tools/editors/actions.

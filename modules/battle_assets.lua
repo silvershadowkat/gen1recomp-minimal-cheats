@@ -216,14 +216,67 @@ shared.battleAssets=A
 -- Same IDs and native 16x16 frames as the imported Gen 3 battle ball sheet.
 -- Gen 2-only balls have no matching Gen 3 art; keep their native renderer.
 local captureIds={POKE_BALL=0,GREAT_BALL=1,SAFARI_BALL=2,ULTRA_BALL=3,MASTER_BALL=4}
-function A.captureBall(item,frame)
+function A.captureBall(item,frame,tilt)
   local id=captureIds[item]
   if id==nil or not A.init()then return end
   if A.captureSheet==nil then
-    A.captureSheet=image("pokemon/battle/ball_open/balls.rgba",192,48)or false
+    local raw=bytes("pokemon/battle/ball_open/balls.rgba")
+    if raw and #raw==192*48*4 then
+      A.capturePixels=love.image.newImageData(192,48,"rgba8",raw)
+      A.captureSheet=g.newImage(A.capturePixels)
+      A.captureSheet:setFilter("nearest","nearest")
+    else A.captureSheet=false end
   end
   if not A.captureSheet then return end
   frame=math.max(0,math.min(2,frame or 0))
+  -- Rotating a 12-pixel circle also rotates its stair-stepped perimeter,
+  -- producing spikes and doubled outline pixels. Keep the imported silhouette
+  -- and its one-pixel rim, rotating only the closed ball's painted interior.
+  -- No smoothing/partial alpha: each result stays on the native pixel grid.
+  if frame==0 and tilt and tilt~=0 then
+    local direction=tilt<0 and -1 or 1
+    local key=id*2+(direction==1 and 1 or 0)
+    A.captureTilts=A.captureTilts or{}
+    if not A.captureTilts[key]then
+      local source=A.capturePixels
+      local function opaque(x,y)
+        if x<0 or x>15 or y<0 or y>15 then return false end
+        local _,_,_,a=source:getPixel(id*16+x,y)
+        return a>0
+      end
+      local interior={}
+      for y=0,15 do for x=0,15 do
+        if opaque(x,y)and opaque(x-1,y)and opaque(x+1,y)
+            and opaque(x,y-1)and opaque(x,y+1)then
+          interior[#interior+1]={x=x,y=y}
+        end
+      end end
+      local data=love.image.newImageData(16,16)
+      local angle=direction*math.pi/12
+      local c,s=math.cos(angle),math.sin(angle)
+      for y=0,15 do for x=0,15 do
+        if opaque(x,y)then
+          local sx,sy=x,y
+          if opaque(x-1,y)and opaque(x+1,y)and opaque(x,y-1)and opaque(x,y+1)then
+            local dx,dy=x-7.5,y-7.5
+            local rx,ry=c*dx+s*dy+7.5,-s*dx+c*dy+7.5
+            -- Extend interior colors to the rim before sampling so a rotated
+            -- outline cannot create a second dark fringe inside the fixed rim.
+            local distance=math.huge
+            for _,p in ipairs(interior)do
+              local d=(p.x-rx)^2+(p.y-ry)^2
+              if d<distance then distance=d;sx,sy=p.x,p.y end
+            end
+          end
+          data:setPixel(x,y,source:getPixel(id*16+sx,sy))
+        end
+      end end
+      local img=g.newImage(data);img:setFilter("nearest","nearest")
+      A.captureTilts[key]={image=img,quad=g.newQuad(0,0,16,16,16,16)}
+    end
+    local cached=A.captureTilts[key]
+    return cached.image,cached.quad
+  end
   A.captureQuads=A.captureQuads or{}
   local key=id*3+frame
   if not A.captureQuads[key]then

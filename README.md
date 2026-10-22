@@ -1,6 +1,6 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.2.0 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.3.0 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
@@ -10,7 +10,7 @@ Version 3.1.10 also keeps the post-catch nickname YES/NO prompt on the modern Ge
 
 ## Mod Deck live cheats
 
-Version 3.2.0 supports Mod Deck 0.5.38's Gen1Recomp entry. Open a game/save, then use the Mod Deck drawer's Cheats tab. It discovers the active version and displays the supported SilverShadow cheat toggles and EXP/damage/movement multiplier settings. Changes apply at the next relevant game calculation, including during battle. In-game menu changes sync back; already open SilverShadow menus refresh when the overlay changes them.
+Version 3.3.0 supports Mod Deck 0.5.38's Gen1Recomp entry. Open a game/save, then use the Mod Deck drawer's Cheats tab. It discovers the active version and displays the supported SilverShadow cheat toggles and EXP/damage/movement multiplier settings. Changes apply at the next relevant game calculation, including during battle. In-game menu changes sync back; already open SilverShadow menus refresh when the overlay changes them.
 
 The game owns all values. There is no separate overlay preference override. Save normally in-game to retain settings alongside progress, exactly as with the native SilverShadow menus. Mod Deck reports pending/applied changes and disables disconnected or link-play controls. Requests include the game, live save-session identity and previous setting value, so stale requests cannot overwrite a different game/save or a newer in-game edit. Gen1Recomp's name-entry/editors, Summon, PC and other actions are not exposed. Visual/follower controls stay in-game.
 
@@ -18,7 +18,7 @@ The data-only bridge uses this mod's installation cache under `mod_cache/minimal
 
 ## Install
 
-Use the packaged silvershadow-mods-v3.2.0.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.3.0.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 
@@ -169,3 +169,11 @@ The fixed homes live in `modules/collection_habitats.lua`. The optional generato
 In Gen 3, register DEXNAV through **START → SILVERSHADOW → FIELD TOOLS / QOL → REGISTER DEXNAV ON SELECT**. In Gen 2, select DEXNAV in the Key Items pocket and choose **SEL**. Existing registered items are preserved until you choose DexNav.
 
 Modern Gen 1/2 capture animations use the matching imported Poke, Great, Ultra, Master and Safari Ball art; Gen 2-exclusive balls retain their native graphics. Native capture outcomes and shake timing are unchanged.
+
+### Rare Candy quantities
+
+Using a Rare Candy in the field opens a quantity picker after choosing a Pokémon. Up/Down changes by one; Left/Right changes by ten. A confirms; B cancels without spending anything. Available candies and the current generation's level cap limit the amount (including the existing Gen 1 extended cap).
+
+A batch processes every level's normal moves and evolution before continuing, so a Caterpie can evolve through Metapod to Butterfree and use the right learnset at each stage. Move replacement and evolution cancellation remain interactive. The final screen reports total levels, HP and stat gains. This is always-on item behavior, with no settings toggle and no extra Mod Deck control. Gen 3 retains its native fainted-Pokémon restriction.
+
+Tilted capture balls use cached pixel frames that retain the imported circular rim and palette. Both left and right wobble frames are covered; throwing, capture odds, shake timing and native Gen 2-only ball art remain intact.

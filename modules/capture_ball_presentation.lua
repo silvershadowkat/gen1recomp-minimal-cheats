@@ -61,10 +61,10 @@ local function partition(sprites,classify)
     frame=frame,tilt=tilt}
 end
 local function draw(item,p)
-  local img,quad=A.captureBall(item,p.frame)
+  local img,quad=A.captureBall(item,p.frame,p.tilt)
   if not img then return false end
   g.push("all");g.setShader();g.setColor(1,1,1,1)
-  local ok,err=pcall(g.draw,img,quad,p.x,p.y,p.tilt*math.pi/12,1,1,8,8)
+  local ok,err=pcall(g.draw,img,quad,p.x,p.y,0,1,1,8,8)
   g.pop()
   if not ok then error(err,0)end
   return true
