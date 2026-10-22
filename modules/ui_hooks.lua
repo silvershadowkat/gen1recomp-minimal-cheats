@@ -16,7 +16,8 @@ mod.hooks:wrap("ui.start_menu.items", function(next, game, items)
     if not ok then
       mod.log:warn("start item %s failed: %s", entry.id, tostring(item))
     elseif item and not hasLabel(out, item.label) then
-      mod.ui.insertBefore(out, "SAVE", item)
+      mod.ui.insertBefore(out, entry.id == "summon" and hasLabel(out, "MODS")
+        and "MODS" or "SAVE", item)
     end
   end
   return out

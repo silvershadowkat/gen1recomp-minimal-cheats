@@ -2,6 +2,7 @@
 -- PokePC owns the primary follower and every sprite asset. SilverShadow only
 -- adds the remaining party members to the live Gen 2 World as native Npcs.
 return function(mod, assetMod, shared)
+  local Transitions = assert(mod.exports.followerTransitions)
   local NPC = require("src.world.NPC")
   local Follower = require("src.world.PikachuFollower")
   local FieldMoves = require("src.world.gen2.FieldMoves")
@@ -205,12 +206,14 @@ return function(mod, assetMod, shared)
   local function behindCell(world, px, py, facing, steps)
     local dx = facing == "left" and 1 or facing == "right" and -1 or 0
     local dy = facing == "up" and 1 or facing == "down" and -1 or 0
-    local x, y = px + dx * steps, py + dy * steps
-    if world.map:inBounds(x, y)
-        and (travelMode(world) or world.map:isWalkableCell(x, y)) then
-      return { x = x, y = y }
+    local x, y = px, py
+    for i = 1, steps do
+      local nx, ny = px + dx * i, py + dy * i
+      if not world.map:inBounds(nx, ny)
+          or not (travelMode(world) or world.map:isWalkableCell(nx, ny)) then break end
+      x, y = nx, ny
     end
-    return { x = px, y = py }
+    return { x = x, y = y }
   end
 
   local function rebuild(game, world)
@@ -222,7 +225,8 @@ return function(mod, assetMod, shared)
     local facing = world.player.facing or "down"
     local history = { { x = px, y = py } }
     for i = 1, #want + lead do
-      history[i + 1] = behindCell(world, px, py, facing, i)
+      history[i + 1] = world.silverFollowerWarp
+        and { x = px, y = py } or behindCell(world, px, py, facing, i)
     end
     local trailers = {}
     for i = 1, #want do
@@ -252,6 +256,7 @@ return function(mod, assetMod, shared)
     world.silverGen2Followers = trailers
     world.silverGen2FollowerHistory = history
     world.silverGen2FollowerLeadSlots = lead
+    world.silverFollowerWarp = nil
   end
 
   local function moveTo(npc, goal, frames, world)
@@ -280,8 +285,9 @@ return function(mod, assetMod, shared)
     syncPhase = "composition"
     world = world or worldFor(game)
     if not (game and world and world.player and world.map) then return end
+    if world.silverFollowerConnection then return end
     local want = wantedExtras(game, world)
-    if not compositionMatches(game, world, want) then rebuild(game, world) end
+    if world.silverFollowerWarp or not compositionMatches(game, world, want) then rebuild(game, world) end
     syncPhase = "complete"
   end
 
@@ -378,17 +384,23 @@ return function(mod, assetMod, shared)
   local originalOnMapEntered = Follower.onMapEntered
   local wrappedOnMapEntered
   if type(originalOnMapEntered) == "function" then
-    wrappedOnMapEntered = function(game, world, ...)
+    wrappedOnMapEntered = function(game, world, opts, viaMapLoad, ...)
+      if world and world.silverFollowerConnection then
+        opts = opts or {}
+        opts.keepFollower = world.silverFollowerConnection.primary
+      elseif world and viaMapLoad then
+        world.silverFollowerWarp = true
+      end
       if not (world and FieldMoves.isSurfing(world.playerState)
           and primaryEligible(game, world)) then
-        return originalOnMapEntered(game, world, ...)
+        return originalOnMapEntered(game, world, opts, viaMapLoad, ...)
       end
       local player = world.player
       local savedState = world.playerState
       local savedSurfing = player and player.surfing
       world.playerState = FieldMoves.PLAYER_NORMAL
       if player then player.surfing = false end
-      local results = { pcall(originalOnMapEntered, game, world, ...) }
+      local results = { pcall(originalOnMapEntered, game, world, opts, viaMapLoad, ...) }
       world.playerState = savedState
       if player then player.surfing = savedSurfing end
       if not results[1] then error(results[2], 0) end
@@ -406,6 +418,28 @@ return function(mod, assetMod, shared)
 
   mod.events:on("world.stepped", function() step(shared.game) end)
   mod.events:on("map.entered", function() syncAll(shared.game, worldFor(shared.game)) end)
+
+  local World = require("src.world.gen2.World")
+  local originalConnection = World.tryConnection
+  local function wrappedConnection(world, ...)
+    local x, y = world.player.cellX, world.player.cellY
+    local followers, history = world.silverGen2Followers, world.silverGen2FollowerHistory
+    world.silverFollowerConnection = { primary = world.follower }
+    local ok, result = pcall(originalConnection, world, ...)
+    world.silverFollowerConnection = nil
+    if not ok then error(result, 0) end
+    if result then
+      local dx, dy = world.player.cellX - x, world.player.cellY - y
+      Follower.rebase(world, dx, dy)
+      if world.follower then world.follower.mapId = world.map.id end
+      Transitions.restore(world, followers, dx, dy)
+      for _, cell in ipairs(history or {}) do Transitions.shiftCell(cell, dx, dy) end
+      world.silverGen2Followers, world.silverGen2FollowerHistory = followers, history
+      world.silverFollowerWarp = nil
+    end
+    return result
+  end
+  World.tryConnection = wrappedConnection
 
   local api = {
     version = "2.0.0-gen2-native",
@@ -429,6 +463,7 @@ return function(mod, assetMod, shared)
     _travelMount = travelMount,
     _primaryEligible = primaryEligible,
     disable = function(game, world)
+      if World.tryConnection == wrappedConnection then World.tryConnection = originalConnection end
       removeExtras(world or worldFor(game))
       if Follower.update == wrappedFollowerUpdate then
         Follower.update = originalFollowerUpdate

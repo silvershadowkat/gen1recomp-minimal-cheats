@@ -181,6 +181,7 @@ end
 mod.hooks:wrap("battle.overlay", function(next, battle)
   next(battle)
   if not (love and love.graphics and battle) then return end
+  if battle._silverModernCapture then return end
   love.graphics.push("all")
   local ok, err = pcall(function()
     drawXp(battle)

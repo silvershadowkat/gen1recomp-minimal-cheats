@@ -73,6 +73,9 @@ end
 local defs = {
   battle = function()
     return {
+      toggle("MODERN HUD", "modern_battle_hud", true),
+      toggle("MODERN EVOLUTION", "modern_evolution_screen", true),
+      toggle("INSTANT TEXT", "instant_text", true),
       choice("EXP MULT", "exp_multiplier", shared.EXP_MULTIPLIERS, 1, multiplier),
       choice("DAMAGE", "damage_multiplier", shared.DAMAGE_MODES, 1, multiplier),
       toggle("HP NEVER 0", "infinite_hp", false),
@@ -88,9 +91,9 @@ local defs = {
   end,
   pokemon = function()
     return {
-      toggle("DEX HUNT", "all_251_catchable", true),
-      choice("HUNT RATE", "catch_all_interval", { 10, 20, 50 }, 20,
-        function(value) return "1/" .. tostring(value) end),
+      toggle("HM DEVICE", "hm_device", true),
+      toggle("REUSABLE TMS", "reusable_tms", true),
+      toggle("UNCAUGHT AREA", "all_251_catchable", true),
       toggle("PC RARE CANDY", "pc_rare_candy", false),
       action("MAX COINS", function(game) shared.maxCoins(game) end),
     }
@@ -130,6 +133,7 @@ local defs = {
   end,
 }
 
+shared.modDeckMenus = defs
 local rootItems = {
   screen("BATTLE", SCREENS.battle),
   screen("POKEMON", SCREENS.pokemon),

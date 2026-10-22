@@ -180,11 +180,13 @@ end
 local function eligibleFlyer(game, mon)
   -- Knowledge is authoritative. This intentionally has no species/TM-HM
   -- compatibility lookup, so a move-editor FLY works on any healthy Pokemon.
-  return healthy(mon) and knowsMove(mon, "FLY")
+  return healthy(mon) and (knowsMove(mon,"FLY") or (shared.bool("hm_device",true)
+    and shared.ownsFieldMachine and shared.ownsFieldMachine(game,"FLY")))
 end
 
 local function surfAllowed(game)
-  return firstHealthyKnower(game, "SURF") ~= nil
+  return (firstHealthyKnower(game,"SURF")~=nil or (shared.bool("hm_device",true)
+    and shared.ownsFieldMachine and shared.ownsFieldMachine(game,"SURF")))
     and badgeAllowed(game, "SURF")
 end
 
@@ -314,7 +316,7 @@ end
 
 local function classify(game, mon, travelMode, overWater, overLand)
   local canFly = hasType(game, mon, "FLYING") or knowsMove(mon, "FLY")
-  local canSurf = knowsMove(mon, "SURF")
+  local canSurf = knowsMove(mon, "SURF") or hasType(game,mon,"WATER")
   local canHover = hasType(game, mon, "PSYCHIC")
     or hasType(game, mon, "GHOST")
 

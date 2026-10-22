@@ -47,7 +47,9 @@ def validate_payload(names: list[str], version: str) -> None:
     bad = [name for name in normalized if name.startswith(forbidden)]
     if bad:
         raise SystemExit(f"Forbidden development files in payload: {bad}")
-    if any(name.endswith((".zip", ".png", ".jpg", ".gif")) for name in normalized):
+    if any(name.endswith((".zip", ".jpg", ".gif")) or
+           (name.endswith(".png") and not name.startswith("assets/gen3_followers/"))
+           for name in normalized):
         raise SystemExit("Payload unexpectedly contains an archive or image asset")
     present = set(normalized)
     retired = sorted(SOURCE_ONLY & present)

@@ -21,8 +21,11 @@ mod.content.screens:register(SCREEN, { new = function(game)
     { label = "POKEMON STORAGE", onSelect = function() openPokemon(game) end },
     { label = "ITEM STORAGE", onSelect = function() openItems(game) end },
     { label = "EDIT PC ITEMS", onSelect = function() openItemEditor(game) end },
+    { label = "EDIT BAG ITEMS", onSelect = function()
+      mod.ui.push(game,shared.itemEditorScreen,{store="bag"})
+    end },
     { label = "CANCEL" },
-  }, { tx = 0, ty = 0, tw = 20, th = 10 })
+  }, { tx = 0, ty = 0, tw = 20, th = 12 })
 end })
 
 shared.registerStartItem("pc", 10, function(game)

@@ -1,3 +1,104 @@
+## 3.3.1
+
+- Show a tiny, always-visible speed multiplier at the top right in all three generations. Read the engine’s effective speed live, including contextual speeds, fast-forward and link-play locks. Draw crisp pixel text after shaders and screen scaling.
+
+## 3.3.0
+
+- Add an automatic Rare Candy quantity picker across Gen 1-3. Apply each native level gain, move-learning check and evolution in sequence; consume only successful candies and show total level, HP and stat growth. Respect inventory, eggs, native restrictions and existing level caps. This is item functionality, not a cheat toggle or Mod Deck action.
+- Preserve the imported capture ball silhouette and rim in both wobble directions. Rotate only the painted interior on the native pixel grid, keeping Poké, Great, Safari, Ultra and Master Balls crisp without blur. Gen 2 exclusive balls retain their native art.
+- Let B exit the native Gen 3 party-screen stop-learning confirmation, including during a candy batch.
+
+# 3.2.0 — Mod Deck live cheat settings
+
+- Add a local data-only bridge for the active game/save across all eleven versions. Reuse the in-game option definitions and setting setters; expose cheat toggles and multipliers without tools/editors/actions.
+- Sync both directions, including an already open SilverShadow options menu. Validate session, game, expected previous value, setting key and allowed values; acknowledge applied/rejected requests. Retain link-play restrictions and normal in-game save semantics.
+- Pair with Mod Deck 0.5.38 (build 115): active-game heading, live values, pending acknowledgements and disabled controls when disconnected. Existing native cheat adapters and controller helpers remain unchanged.
+
+# 3.1.10 — Post-catch nickname prompt
+
+- Keep Gen 1 nickname YES/NO prompts on the modern 256×192 canvas when they appear above battle dialogue. Preserve native choice callbacks, caught Pokemon storage, Pokedex registration and name-entry screens. Party and PC confirmations retain their own layout.
+
+# 3.1.9 — Native bag pouches and battle item messages
+
+- Move SUMMON immediately above MODS in the shared Gen 1/2 Start menu.
+- Add Left/Right pouches to Gen 1 field Item and battle Bag, using the PC item editor classifications. Keep native use/toss/cancel and stack-aware SELECT/A reordering; remember field and battle pouches separately. Begin battle bags on Poké Balls.
+- Fit long TM/HM labels inside the native item box.
+- Keep battle item messages on the modern 256×192 surface, including rejected Moon Stone use, without altering native item outcomes, party menus or disabled-HUD behavior.
+
+# 3.1.8 — Move learning cancellation and adjusted power
+
+- Make B accept the stop-learning confirmation in all three generations, so repeated B presses leave the move-learning flow instead of looping. A on NO still resumes learning; native completion callbacks, item consumption and unrelated YES/NO choices are preserved.
+- Show PWR in the modern Gen 1/2 and Gen 3 move-info window: base power × STAB × type effectiveness. Use current battler types, including transformations, and Gen 3 target/ability immunities. Mixed or unselected double-battle targets show `?`; status and nonstandard base-power moves show `--`.
+- Keep PP, colored type and matchup text, with four aligned rows. PWR is a comparison value, not HP damage; it excludes Attack/Defense, random rolls, critical hits, weather and damage-cheat multipliers.
+
+# 3.1.7 — Local collection, Summon and capture artwork
+
+- Keep Gen 1's modern battle canvas behind trainer-switch and post-faint YES/NO prompts, with a matching popup and native choice behavior. Preserve native Party/Bag layouts.
+- Replace Gen 2/3 global encounter timers with fixed local habitat/progression mappings and an uncaught-local preference on every normal encounter. Keep ordinary native encounters and mix in local additions even with the preference off.
+- Give every Johto/Hoenn species a FireRed/LeafGreen home after the actual National Dex unlock. Put extra legendaries in Cerulean Cave; preserve scripted encounters and existing Pokemon. Use Mt. Silver and Sky Pillar for the corresponding extra legendary pools in Johto and Hoenn.
+- Make registered Gen 3 DexNav start an uncaught local wild battle immediately. Use the same area pools as ordinary encounters, including water while surfing.
+- Add Gen 2's 251-species Summon list and change Gen 3 Summon from direct party grants to native wild battles. Summon uses a healthy lead's level and respects FRLG's National Dex restriction.
+- Redirect modern Gen 1/2 capture balls to matching imported Gen 3 Poke, Great, Ultra, Master and Safari Ball artwork, preserving native trajectories, shakes, particles and capture outcomes. Gen 2-exclusive balls keep their native art.
+
+# 3.1.6 — Start-menu cleanup
+
+- Delete the paid Heal Anywhere module, removing its HEAL shortcut and field-machine rendering hooks from the code and release package. PC access and other healing tools are unchanged.
+
+# 3.1.5 — Evolution and move learning
+
+- Add independently toggled Gen 1/2 evolution presentation, native old/new-form timing, high-contrast silhouettes, and clean full 4:3 composition using imported FRLG assets.
+- Carry native move-learning prompts, choices, forget lists and results into the same presentation, including type colors, PP and move details. Preserve native callbacks and existing HM/reusable-machine behavior.
+- Decode the money glyph as ¥ instead of the imported `<ED>` alias. Raise the opponent's Gen 1 intro Poké Balls without moving the player's row.
+- Keep Gen 3 and saved progress untouched.
+
+# 3.1.4 — Followers across doors and routes
+
+- Gather Gen 1/2 followers at the arrival tile after a warp; do not invent a trail through houses or walls.
+- Preserve follower entities, movement progress and trail history across connected routes in all three generations, translating into the destination map’s coordinates.
+- Preserve Gen 2’s primary follower as well as the extra party followers, and retain Yellow’s special Pikachu without duplicating it.
+- Check every intervening ground tile when creating a new behind-player formation.
+- Retain 3.1.3’s title/intro pixel fixes and shared move colors.
+
+# 3.1.3 — Title pixel preservation and editor colors
+
+- Align Gen 1 boot/title artwork and retro-v3 sampling to the same whole-pixel scale, preserving thin letter strokes.
+- Extend the original Red/Blue intro bars across the wide surround, including native palette fades.
+- Share one type palette across battles and Gen 1/2/3 move editors; color move lists, type categories and type labels without changing move rules.
+
+# 3.1.2 — Battle layout and LCD refinements
+
+- Use a 256x192 battle canvas for an exact 5x pixel scale on the 1280x960 Nova. Preserve sharp native sprite and font proportions.
+- Repair native Gen 1 Bag/Party transitions, level-up stats, intro party balls, back-sprite baseline and entry clipping; interpolate native HP animation for smoother display.
+- Add a 4:3 battle view to FireRed, LeafGreen, Ruby, Sapphire and Emerald, retaining each game’s own terrain, chrome and controls. Party and Bag screens extend native backgrounds to 4:3 while preserving unscaled text, icons and controls.
+- Add colored move names and read-only type matchups to Gen 3. Respect selected double-battle targets; show VARIES for mixed spread matchups, STATUS for support moves and SPECIAL for fixed/conditional damage.
+- Reflow Gen 2 Party/Pack panels across 4:3, retain all six party rows and item submenus, and match the LCD sampling lattice to the actual battle/menu render scale.
+- Align fractional retro-v3 LCD grids without changing preset parameters or overworld zoom.
+
+# 3.1.1 — LCD shader pixel alignment
+
+- Remove retro-v3's tiny UV stretch in its loaded vertex shader so LCD grid lines keep a consistent phase and thickness. Applies to fresh and cached translations without modifying preset files.
+- Keep Shader FX intermediate canvases at explicit pixel resolution on high-DPI devices. This fixes uneven LCD grid lines and triangular shading caused by doubled render targets and resampling on the Nova.
+- Scope the correction to the shader pass; retain native world/UI canvas scaling and all preset choices. Restore the graphics constructor even if a shader fails.
+- Add focused regression coverage for target sizing, option preservation, idempotence and error cleanup.
+
+# 3.1.0 — Gen 3 / engine 0.3.91
+
+- Support all eleven Gen 1–3 games with generation-native module loading.
+- Add Gen 3 battle cheats for both allied slots, native PP/HP/ball handling, and link exclusions. Keep trainer and unsupported double capture restrictions.
+- Add 386-species normal/shiny followers, Pokemon control and optional trainer trail.
+- Add map-local Free Fly with default badge/story gates, safe landing, return-to-ground and airborne save rejection.
+- Add Gen 3 Dex Hunt, queued DexNav, no-trade evolution alternatives and obtainable held items, retaining native evolution gates.
+- Add Gen 3 IV/EV/level editors and current-level/ancestral move learning with a SELECT-switchable categorized full move picker.
+- Restore native Gen 1 Bag and PC item operations; retain a separate additive item editor. Keep native Gen 2/3 inventory screens.
+- Add an optional full 4:3 Gen 1/2 battle layout redirecting to imported FRLG sprites, matching trainer portraits, UI and font assets. Add type-colored moves, effectiveness, HP and caught indicators.
+- Preserve native Yellow starter Pikachu identity, happiness and availability alongside extra followers.
+- Remove the retired starter substitution and cache a missing optional healing-machine image, with a drawn fallback.
+- Add HM-device field actions in Gen 2/3, including native RSE scripted prompts, while preserving follower move/type eligibility.
+- Add reusable Gen 2/3 TMs, registered Gen 3 DexNav, and current-page instant text across all three generations.
+- Preserve native Gen 3 battle terrain and select appropriate Gen 1/2 terrain/leader/League visuals.
+- Use built-in engine LCD presets and retain PokéPC integration for Gen 1/2.
+- Validate the real 0.3.91 loader and live runtime across all eleven games, including Gen 3 double battles, collection/evolution checks and Gen 1/2 battle presentation.
+
 # Changelog
 
 ## 3.0.17 - 2026-08-31

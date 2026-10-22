@@ -1,4 +1,4 @@
--- SilverShadow Mods 3.0.17
+-- SilverShadow Mods 3.3.1
 -- One entry point, deterministic module order, and one shared service table.
 
 return function(mod)
@@ -21,6 +21,12 @@ return function(mod)
   end
 
   local shared = loadModule("modules/core.lua")
+  loadModule("modules/collection_habitats.lua",shared)
+  loadModule("modules/type_colors.lua",shared)
+  loadModule("modules/move_power.lua",shared)
+  loadModule("modules/follower_transitions.lua",shared)
+  loadModule("modules/shader_pixel_scale.lua",shared)
+  loadModule("modules/boot_presentation.lua",shared)
   local gen1Modules = {
     -- Content patches run before runtime consumers such as DexNav.
     "modules/content_151.lua",
@@ -35,7 +41,6 @@ return function(mod)
     "modules/field_moves.lua",
     "modules/dexnav.lua",
     "modules/summon.lua",
-    "modules/heal_anywhere.lua",
 
     -- Unified SilverShadow behavior and compatibility.
     "modules/trigger_buttons.lua",
@@ -67,16 +72,45 @@ return function(mod)
     "modules/dv_ev_editor.lua",
     "modules/gen2_healing.lua",
     "modules/gen2_dexnav.lua",
+    "modules/gen2_summon.lua",
     "modules/gen2_pc.lua",
     "modules/gen2_item_editor.lua",
+    "modules/gen2_field_tools.lua",
     "modules/followers_integration.lua",
     "modules/gen2_options.lua",
     "modules/ui_hooks.lua",
   }
 
-  local modules = shared.generation == 2 and gen2Modules or gen1Modules
+  local gen3Modules = {
+    "modules/gen3_battle_cheats.lua",
+    "modules/gen3_field.lua",
+    "modules/gen3_collection.lua",
+    "modules/gen3_moves.lua",
+    "modules/gen3_field_tools.lua",
+    "modules/gen3_followers.lua",
+    "modules/gen3_options.lua",
+    "modules/gen3_move_info.lua",
+    "modules/gen3_battle_presentation.lua",
+    "modules/gen3_menu_presentation.lua",
+  }
+  local modules = shared.generation == 3 and gen3Modules
+    or shared.generation == 2 and gen2Modules or gen1Modules
   for _, path in ipairs(modules) do loadModule(path, shared) end
+  loadModule("modules/instant_text.lua",shared)
+  loadModule("modules/move_learning_cancel.lua",shared)
+  if shared.generation~=3 then
+    loadModule("modules/battle_assets.lua",shared)
+    loadModule("modules/capture_ball_presentation.lua",shared)
+    loadModule("modules/battle_presentation.lua",shared)
+    if shared.generation==2 then loadModule("modules/gen2_menu_presentation.lua",shared) end
+    loadModule("modules/evolution_presentation.lua",shared)
+    loadModule("modules/move_learning_presentation.lua",shared)
+  end
+  if shared.gameVersion=="yellow" then loadModule("modules/yellow_companion.lua",shared) end
+  loadModule("modules/batch_candy.lua",shared)
+  if shared.generation==3 then loadModule("modules/gen3_batch_candy.lua",shared)end
+  loadModule("modules/moddeck_bridge.lua",shared)
+  loadModule("modules/speed_indicator.lua",shared)
   mod.exports.silvershadow = shared
-  mod.log:info("SilverShadow Mods 3.0.17 loaded for %s",
-    shared.generation == 2 and "Gen 2" or "Gen 1")
+  mod.log:info("SilverShadow Mods 3.3.1 loaded for Gen %s", shared.generation)
 end

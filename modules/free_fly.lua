@@ -223,7 +223,7 @@ mod.exports.freeFly = {
     -- learn the move naturally. A dual FLY/SURF user follows in the style of
     -- the current trip rather than always preferring its airborne capability.
     local canFly = hasType(game, mon, "FLYING") or knowsMove(mon, "FLY")
-    local canSurf = knowsMove(mon, "SURF")
+    local canSurf = knowsMove(mon, "SURF") or hasType(game,mon,"WATER")
       or (ownedHM(game, "SURF") and hasType(game, mon, "WATER"))
     local canHover = hasType(game, mon, "PSYCHIC")
       or hasType(game, mon, "GHOST")

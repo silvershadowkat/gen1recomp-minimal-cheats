@@ -1,19 +1,30 @@
 {
   "id": "minimal_cheats",
   "name": "SilverShadow Mods",
-  "version": "3.0.17",
+  "version": "3.3.1",
   "api": 2,
   "entry": "main.lua",
-  "games": ["gen1", "gen2"],
+  "games": [
+    "gen1",
+    "gen2",
+    "gen3"
+  ],
   "profile": "overhaul",
   "category": "MECHANIC",
   "github": "silvershadowkat/gen1recomp-minimal-cheats",
-  "game_version": ">=0.1.75 <2.0.0",
+  "game_version": ">=0.3.91 <2.0.0",
   "priority": 100,
   "dependencies": [],
-  "optional_dependencies": ["PokePCFollowers_VoxelMerge", "DRAMATIC_SHAPE"],
-  "conflicts": ["free_fly"],
+  "optional_dependencies": [
+    "PokePCFollowers_VoxelMerge",
+    "DRAMATIC_SHAPE"
+  ],
+  "conflicts": [
+    "free_fly"
+  ],
   "affects_link": false,
-  "permissions": ["engine_internals"],
-  "description": "One six-game SilverShadow overhaul: the complete Gen 1 suite plus generation-safe battle cheats, Pokemon editors, storage, healing, and movement tools for Gen 2. Link/PvP changes stay disabled."
+  "permissions": [
+    "engine_internals"
+  ],
+  "description": "SilverShadow cheats for all eleven Gen 1-3 games, with Gen 3 singles/doubles battle cheats, healing, followers, Pokemon control and map-local Free Fly. Offline gameplay only."
 }

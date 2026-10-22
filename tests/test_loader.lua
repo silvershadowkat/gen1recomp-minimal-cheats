@@ -28,7 +28,7 @@ if not rawget(_G, "bit") and not rawget(_G, "bit32") then
   package.preload["bit"] = function() return bit32 end
 end
 
-require("src.core.Version").engine = "0.1.86"
+require("src.core.Version").engine = "0.3.91"
 local GameVersion = require("src.core.GameVersion")
 local Runtime = require("src.mods.Runtime")
 local Evolution2 = require("src.core.gen2.Evolution")
@@ -87,7 +87,7 @@ local function loadGen1()
   assert(#run.errors == 0, "Gen 1 loader errors: " .. table.concat(run.errors, "; "))
   local exports = assert(run.loader.exports.minimal_cheats,
     "SilverShadow Gen 1 exports were not published")
-  assert(exports.silvershadow.version == "3.0.17", "wrong Gen 1 runtime version")
+  assert(exports.silvershadow.version == "3.3.1", "wrong Gen 1 runtime version")
   assert(run.loader.mods.minimal_cheats.manifest.github
       == "silvershadowkat/gen1recomp-minimal-cheats",
     "GitHub update repository metadata was not loaded")
@@ -176,7 +176,7 @@ local function loadGen2()
   local exports = assert(run.loader.exports.minimal_cheats,
     "SilverShadow Gen 2 exports were not published")
   local shared = assert(exports.silvershadow)
-  assert(shared.version == "3.0.17" and shared.generation == 2,
+  assert(shared.version == "3.3.1" and shared.generation == 2,
     "wrong Gen 2 runtime branch")
   local freeFly = assert(exports.freeFly,
     "Gen 2 Free Fly API was not exported")
@@ -397,7 +397,7 @@ local function loadGen2()
   assert(not exports.followersIntegration.activate(activationGame),
     "follower controller installed before the first Pokemon existed")
   assert(not exports.followersIntegration.engine()._followersExControlEngine,
-    "pre-starter game mutated PokéPC's standalone controller")
+    "pre-starter game mutated PokÃƒÆ’Ã‚Â©PC's standalone controller")
   activationGame.save.party[1] = { species = "FIXMON_A", hp = 20 }
   local savedLove = love
   love = { graphics = {
@@ -444,6 +444,8 @@ local function loadGen2()
   -- edited SURF user reappears with the swimming animation style.
   activationGame.save.party[1].moves = { { id = "FLY" } }
   activationGame.save.party[2].moves = {}
+  local waterTypes=run.data.pokemon.FIXMON_B.types
+  run.data.pokemon.FIXMON_B.types={"NORMAL"}
   activationOw.player.freeFlying = true
   activationOw.player.silverTravelAltitude = 56
   activationCollision = 0x20
@@ -454,6 +456,7 @@ local function loadGen2()
   assert(#activationOw.silverGen2Followers == 0,
     "incapable Gen 2 follower did not hide over water")
   activationGame.save.party[2].moves = { { id = "SURF" } }
+  run.data.pokemon.FIXMON_B.types=waterTypes
   followerApi._step(activationGame)
   assert(#activationOw.silverGen2Followers == 1
       and activationOw.silverGen2Followers[1].silverTravelStyle == "surf",
@@ -522,6 +525,18 @@ local function loadGen2()
   activationOw.player.silverSurfMount = nil
   activationGame.save.party[3] = nil
   followerApi.setFollowerCount(2)
+  activationOw.npcs, activationOw.entities = {}, { activationOw.player }
+  NativeFollower.onMapEntered(activationGame, activationOw, {}, true)
+  followerApi.syncAll(activationGame, activationOw)
+  assert(activationOw.follower.cellX == activationOw.player.cellX
+      and activationOw.follower.cellY == activationOw.player.cellY,
+    "Gen 2 primary did not gather at the warp arrival")
+  assert(#activationOw.silverGen2Followers == 1)
+  for _, npc in ipairs(activationOw.silverGen2Followers) do
+    assert(npc.cellX == activationOw.player.cellX
+        and npc.cellY == activationOw.player.cellY,
+      "Gen 2 warp invented a trail through the destination building")
+  end
   love = savedLove
 
   -- A fresh game must not activate SilverShadow's controller just because the
@@ -663,40 +678,44 @@ local function loadGen2()
   Runtime.emit("pokemon.evolved", { mon = evolved, via = methodId })
   assert(evolved.item == nil, "successful custom evolution did not consume its item")
 
-  -- Dex Hunt counts only ordinary step encounters, filters caught species,
-  -- and honors both configurable rates.
-  local caught = {}
-  for id, def in pairs(run.data.pokemon) do
-    if tonumber(def.dex) then caught[id] = true end
+  -- Dex Hunt selects uncaught local species on every ordinary encounter;
+  -- it never imports an uncaught species from a different area.
+  local caught={}
+  for id,def in pairs(run.data.pokemon)do if tonumber(def.dex)then caught[id]=true end end
+  caught.SCIZOR=nil
+  local localSpecies="SCIZOR"
+  local world={map={id="FIX_ROUTE"},player={surfing=false},tod="DAY",
+    wildTables=function()return {grass={FIX_ROUTE={rates={DAY=20},slots={DAY={
+      {species=localSpecies,level=17}}}}}}end}
+  local game={data=run.data,world=world,save={pokedex={caught=caught}}}
+  shared.game=game;shared.set("all_251_catchable",true)
+  shared.set("catch_all_interval",50) -- obsolete saved interval cannot delay hunting
+  local function encounter(kind)
+    return Runtime.call("encounter.species",function(row)return row end,
+      {species="KADABRA",level=17},{kind=kind,data=run.data,rng=function()return 1 end})
   end
-  caught.SCIZOR = nil
-  local game = { data = run.data, save = { pokedex = { caught = caught } } }
-  shared.game = game
-  shared.set("all_251_catchable", true)
-  shared.set("catch_all_interval", 10)
-  local function encounter(kind, species)
-    return Runtime.call("encounter.species", function(row) return row end,
-      { species = species or "KADABRA", level = 17 },
-      { kind = kind, data = run.data })
+  for _,kind in ipairs({"contest","script","sweet_scent"})do
+    assert(encounter(kind).species=="KADABRA",kind.." must stay native")
   end
-  for _, kind in ipairs({ "contest", "script", "sweet_scent" }) do
-    assert(encounter(kind).species == "KADABRA",
-      kind .. " encounter must remain unchanged")
-  end
-  for _ = 1, 9 do
-    assert(encounter("wild").species == "KADABRA",
-      "Dex Hunt replaced an encounter before the 1/10 interval")
-  end
-  assert(encounter("wild").species == "SCIZOR",
-    "Dex Hunt did not select the only uncaught species")
-  caught.SCIZOR, caught.PORYGON2 = true, nil
-  shared.set("catch_all_interval", 50)
-  for _ = 1, 49 do
-    assert(encounter("wild").species == "KADABRA",
-      "Dex Hunt replaced an encounter before the 1/50 interval")
-  end
-  assert(encounter("wild").species == "PORYGON2",
-    "Dex Hunt did not honor the 1/50 interval")
+  for _=1,3 do assert(encounter("wild").species=="SCIZOR","local hunt must work immediately")end
+  caught.SCIZOR=true;caught.PORYGON2=nil
+  assert(encounter("wild").species=="KADABRA","hunt leaked another area's species")
+  localSpecies="PORYGON2"
+  assert(encounter("wild").species=="PORYGON2","local table update ignored")
+  shared.set("all_251_catchable",false)
+  assert(encounter("wild").species=="KADABRA","uncaught preference toggle ignored")
+  local oldTables=run.data.gen2Encounters
+  local home=shared.collectionHomes.johto[212]
+  run.data.gen2Encounters={
+    grass={[home.map]={rates={DAY=20},slots={DAY={{species="KADABRA",level=17}}}}},
+    timeFishGroups={{species="SCIZOR",level=209}},
+  }
+  local found=false
+  for _,row in ipairs(shared.gen2AreaRows(game,{
+    map={id=home.map},player={surfing=false},tod="DAY",
+  }))do if row.species=="SCIZOR"then found=true end end
+  assert(found,"unused imported fishing data suppressed an obtainable species")
+  run.data.gen2Encounters=oldTables
 
   -- Move Manager follows Gen 2 levelMoves and into evolution links and uses
   -- the active move registry, including Dark/Steel and both Gen 2 HMs.

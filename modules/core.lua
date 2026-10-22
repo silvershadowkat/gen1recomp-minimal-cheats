@@ -1,7 +1,7 @@
 local mod = ...
 
 local M = {
-  version = "3.0.17",
+  version = "3.3.1",
   game = nil,
   linkBattleActive = false,
   startItems = {},
@@ -60,13 +60,18 @@ function M.cycle(key, values, default)
 end
 
 function M.isLinkBattle(battle)
-  return battle ~= nil and (battle.kind == "link" or battle.linkBattle == true)
+  return battle ~= nil and (battle.kind == "link" or battle.linkBattle == true
+    or battle.link == true or (battle.kinds and battle.kinds.link == true))
 end
 
 function M.online()
   if M.linkBattleActive then return true end
   local game = M.game
   if not game then return false end
+  if M.generation == 3 then
+    local link = require("src.core.game3.link")
+    if link and link.link ~= nil then return true end
+  end
   if game.linkSession ~= nil then return true end
   return game.linkNet ~= nil and game.linkNet.closed ~= true
 end

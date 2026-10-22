@@ -57,15 +57,36 @@ local function currentSlots(game, world)
   return slots, GRASS_WEIGHTS, mapId
 end
 
-local function candidates(game, world)
+local cachedTables,cachedPresent,cachedByDex
+local function nativeRoster(game)
+  local tables=game.data.gen2Encounters
+  if cachedTables==tables and cachedPresent then return cachedPresent,cachedByDex end
+  cachedTables,cachedPresent,cachedByDex=tables,{},{}
+  for id,def in pairs(game.data.pokemon or {})do
+    if def.dex then cachedByDex[tonumber(def.dex)]=id end
+  end
+  local seen={}
+  local function scan(t)
+    if type(t)~="table"or seen[t]then return end
+    seen[t]=true
+    local def=t.species and game.data.pokemon[t.species]
+    if def and def.dex then cachedPresent[tonumber(def.dex)]=true end
+    for _,v in pairs(t)do if type(v)=="table"then scan(v)end end
+  end
+  -- Only ordinary walking/Surf tables establish a species' existing home.
+  -- Unused imported fishing records must not suppress a real local addition.
+  scan(tables and tables.grass)
+  scan(tables and tables.water)
+  return cachedPresent,cachedByDex
+end
+function shared.gen2AreaRows(game,world)
   local slots, weights, mapId = currentSlots(game, world)
   if not slots then return {}, mapId, "no_encounters" end
-  local caught = game.save and game.save.pokedex and game.save.pokedex.caught or {}
   local rows = {}
   for index, slot in ipairs(slots) do
     local species = type(slot) == "table" and slot.species or nil
     local level = type(slot) == "table" and tonumber(slot.level) or nil
-    if species and level and game.data.pokemon[species] and not caught[species] then
+    if species and level and game.data.pokemon[species] then
       rows[#rows + 1] = {
         species = species,
         level = math.max(1, math.floor(level)),
@@ -73,6 +94,21 @@ local function candidates(game, world)
       }
     end
   end
+  local present,byDex=nativeRoster(game)
+  local terrain=world.player.surfing and "water"or"land"
+  for _,nat in ipairs(shared.collectionAddedSpecies("johto",mapId,terrain,present,251))do
+    local h=shared.collectionHomes.johto[nat]
+    if byDex[nat]then rows[#rows+1]={species=byDex[nat],
+      level=math.floor((h.minLevel+h.maxLevel)/2),weight=5,added=true}end
+  end
+  return rows,mapId
+end
+local function candidates(game,world)
+  local pool,mapId,reason=shared.gen2AreaRows(game,world)
+  if reason then return {},mapId,reason end
+  local caught=game.save and game.save.pokedex and game.save.pokedex.caught or {}
+  local rows={}
+  for _,row in ipairs(pool)do if not caught[row.species]then rows[#rows+1]=row end end
   if #rows == 0 then return rows, mapId, "complete" end
   return rows, mapId
 end
@@ -90,6 +126,7 @@ local function pickTarget(game, world, rng)
   end
   return rows[#rows], mapId
 end
+shared.gen2DexNavPick=pickTarget
 
 local function queueText(text)
   if not mod.world then return nil, "world API unavailable" end
