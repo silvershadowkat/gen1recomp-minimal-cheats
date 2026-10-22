@@ -1,6 +1,6 @@
 # SilverShadow Mods
 
-SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.3.0 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
+SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): Red, Blue, Yellow, Gold, Silver, Crystal, FireRed, LeafGreen, Ruby, Sapphire, and Emerald. Version 3.3.1 targets engine 0.3.91 and keeps the internal mod ID minimal_cheats, preserving existing settings.
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
@@ -8,9 +8,11 @@ Version 3.1.9 adds Left/Right pouches to the native Gen 1 field Item and battle 
 
 Version 3.1.10 also keeps the post-catch nickname YES/NO prompt on the modern Gen 1 battle canvas. Selecting YES still opens the native name-entry screen.
 
+A tiny top-right indicator shows the current game speed (including 1x) across maps, menus and battles in all three generations. It follows the engine’s effective speed automatically and stays sharp outside the LCD shader.
+
 ## Mod Deck live cheats
 
-Version 3.3.0 supports Mod Deck 0.5.38's Gen1Recomp entry. Open a game/save, then use the Mod Deck drawer's Cheats tab. It discovers the active version and displays the supported SilverShadow cheat toggles and EXP/damage/movement multiplier settings. Changes apply at the next relevant game calculation, including during battle. In-game menu changes sync back; already open SilverShadow menus refresh when the overlay changes them.
+Version 3.3.1 supports Mod Deck 0.5.38's Gen1Recomp entry. Open a game/save, then use the Mod Deck drawer's Cheats tab. It discovers the active version and displays the supported SilverShadow cheat toggles and EXP/damage/movement multiplier settings. Changes apply at the next relevant game calculation, including during battle. In-game menu changes sync back; already open SilverShadow menus refresh when the overlay changes them.
 
 The game owns all values. There is no separate overlay preference override. Save normally in-game to retain settings alongside progress, exactly as with the native SilverShadow menus. Mod Deck reports pending/applied changes and disables disconnected or link-play controls. Requests include the game, live save-session identity and previous setting value, so stale requests cannot overwrite a different game/save or a newer in-game edit. Gen1Recomp's name-entry/editors, Summon, PC and other actions are not exposed. Visual/follower controls stay in-game.
 
@@ -18,7 +20,7 @@ The data-only bridge uses this mod's installation cache under `mod_cache/minimal
 
 ## Install
 
-Use the packaged silvershadow-mods-v3.3.0.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
+Use the packaged silvershadow-mods-v3.3.1.zip and choose **Import mod .zip** in Gen1Recomp. Alternatively, copy the extracted silvershadow_mods folder into Gen1Recomp's mods directory. Build the package with `python tools/package.py` when using an unreleased branch. Do not use GitHub's automatically generated source archive.
 
 ## Gen 3
 

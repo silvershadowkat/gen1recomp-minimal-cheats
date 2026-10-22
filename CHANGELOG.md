@@ -1,3 +1,7 @@
+## 3.3.1
+
+- Show a tiny, always-visible speed multiplier at the top right in all three generations. Read the engine’s effective speed live, including contextual speeds, fast-forward and link-play locks. Draw crisp pixel text after shaders and screen scaling.
+
 ## 3.3.0
 
 - Add an automatic Rare Candy quantity picker across Gen 1-3. Apply each native level gain, move-learning check and evolution in sequence; consume only successful candies and show total level, HP and stat growth. Respect inventory, eggs, native restrictions and existing level caps. This is item functionality, not a cheat toggle or Mod Deck action.
