@@ -28,7 +28,7 @@ if not rawget(_G, "bit") and not rawget(_G, "bit32") then
   package.preload["bit"] = function() return bit32 end
 end
 
-require("src.core.Version").engine = "0.3.91"
+require("src.core.Version").engine = os.getenv("SILVERSHADOW_ENGINE_VERSION") or "0.3.91"
 local GameVersion = require("src.core.GameVersion")
 local Runtime = require("src.mods.Runtime")
 local Evolution2 = require("src.core.gen2.Evolution")
@@ -159,6 +159,16 @@ local function seedGen2()
     tmLabel = "HM01", teaches = "FIX_MOVE",
   })
   item("BICYCLE", "KEY_ITEM", 6)
+  -- Modern engine validation checks native index uniqueness across the entire
+  -- registry, including the synthetic FIX_* entries inherited above.
+  for _, bucket in ipairs({data.pokemon, data.items}) do
+    local keys = {}
+    for id, def in pairs(bucket) do
+      if type(def) == "table" and def.id and def.index then keys[#keys + 1] = id end
+    end
+    table.sort(keys)
+    for i, id in ipairs(keys) do bucket[id].index = i end
+  end
   return data
 end
 

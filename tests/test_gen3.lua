@@ -4,7 +4,7 @@ love=require("tests.love_stub")
 local Version=require("src.core.GameVersion")
 local version=os.getenv("SILVERSHADOW_GEN3_VERSION") or "firered"
 Version.set(version)
-require("src.core.Version").engine="0.3.91"
+require("src.core.Version").engine=os.getenv("SILVERSHADOW_ENGINE_VERSION")or"0.3.91"
 local sdk=require("tests.modkit.sdk")
 local Runtime=require("src.mods.Runtime")
 local run=sdk.loadMod(os.getenv("SILVERSHADOW_TEST_MOD") or "dist/silvershadow_mods",

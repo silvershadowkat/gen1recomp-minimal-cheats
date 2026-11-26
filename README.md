@@ -4,6 +4,8 @@ SilverShadow Mods supports all eleven Gen 1–3 games in [Gen1Recomp](https://gi
 
 The entry point selects a generation-safe module set at runtime. Red, Blue, and Yellow retain the compatible original suite. Gold, Silver, and Crystal use the generation-native battle, editor, movement, healing, and catch/evolution implementations. The engine's original Pokemon boxes are preserved in both generations.
 
+Compatibility verified against the official Gen1Recomp 0.4.8 Android payload on November 25, 2026. The existing API 2 cheat, battle presentation, shader alignment, speed indicator and ModDeck bridge implementations remain compatible. Engine updates can require native ROM reimport even when the outer cache marker is unchanged; use retained ROM sources and the engine's full readiness check.
+
 Version 3.1.9 adds Left/Right pouches to the native Gen 1 field Item and battle Bag menus: Items, Medicine, Poké Balls, TMs/HMs, Battle Items, and Key Items. Battle bags initially open on Poké Balls; each context remembers its last pouch for the session. SELECT still marks an item for reordering; SELECT or A completes the swap. Native USE, TOSS, per-stack quantities, CANCEL and B behavior are retained. SUMMON sits immediately above MODS in the shared Gen 1/2 Start menu. Invalid battle-item messages (such as Moon Stone) retain the modern battle canvas and dialogue box.
 
 Version 3.1.10 also keeps the post-catch nickname YES/NO prompt on the modern Gen 1 battle canvas. Selecting YES still opens the native name-entry screen.
